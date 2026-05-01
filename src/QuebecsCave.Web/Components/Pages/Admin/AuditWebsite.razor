@@ -1,0 +1,117 @@
+@page "/admin/audit/website"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using QuebecsCave.Core.Audit
+@using QuebecsCave.Web.Auth
+@attribute [Authorize(Policy = AuthorizationPolicies.AuditAccess)]
+@inject IWebsiteEventQueryRepository Repo
+
+<PageTitle>Website audit · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Website audit</h1>
+    <p class="muted">Logins, theme changes, reactions, page visits.</p>
+</header>
+
+<div class="card filter-bar">
+    <div class="filter">
+        <label>Action</label>
+        <select @bind="_action" @bind:after="OnFilterChanged">
+            <option value="">Any</option>
+            <option>PageView</option><option>Login</option><option>Logout</option>
+            <option>Reaction</option><option>ThemeChange</option><option>Search</option>
+        </select>
+    </div>
+    <div class="filter">
+        <label>User ID</label>
+        <input type="number" min="1" placeholder="1" @bind="_userId" @bind:after="OnFilterChanged" />
+    </div>
+    <div class="filter grow">
+        <label>Path contains</label>
+        <input type="search" @bind="_path" @bind:event="oninput" @bind:after="OnSearchTyped" />
+    </div>
+    <div class="filter">
+        <label>From</label>
+        <input type="date" @bind="_from" @bind:after="OnFilterChanged" />
+    </div>
+    <div class="filter">
+        <label>To</label>
+        <input type="date" @bind="_to" @bind:after="OnFilterChanged" />
+    </div>
+</div>
+
+@if (_loading) { <p class="muted">Loading…</p> }
+else
+{
+    <p class="muted small results-count">@_page.Total event(s)</p>
+    <div class="card audit-table-wrap">
+        <table class="audit-table">
+            <thead><tr><th>When</th><th>Action</th><th>User</th><th>Path</th><th>Detail</th></tr></thead>
+            <tbody>
+            @foreach (var row in _page.Items)
+            {
+                <tr>
+                    <td><time>@row.OccurredAt.ToLocalTime().ToString("dd MMM HH:mm:ss")</time></td>
+                    <td>@row.Action</td>
+                    <td>@(row.UserId?.ToString() ?? "—")</td>
+                    <td><code>@(row.Path ?? "—")</code></td>
+                    <td class="message-cell">@(row.Detail ?? "")</td>
+                </tr>
+            }
+            @if (_page.Items.Count == 0) { <tr><td colspan="5" class="muted center">No matches.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+    @if (_page.Total > _take)
+    {
+        <nav class="pager">
+            <button class="btn btn-ghost" @onclick="PrevPage" disabled="@(_skip == 0)">← Newer</button>
+            <span class="muted small">Page @((_skip / _take) + 1)</span>
+            <button class="btn btn-ghost" @onclick="NextPage" disabled="@(_skip + _take >= _page.Total)">Older →</button>
+        </nav>
+    }
+}
+
+@code {
+    private const int _take = 25;
+    private AuditPage<WebsiteEventRow> _page = new(Array.Empty<WebsiteEventRow>(), 0, 0, _take);
+    private bool _loading = true;
+    private int _skip;
+    private string? _action, _path;
+    private int? _userId;
+    private DateTime? _from, _to;
+    private CancellationTokenSource? _searchCts;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true; StateHasChanged();
+        try
+        {
+            var filter = new WebsiteEventFilter(
+                _from.HasValue ? new DateTimeOffset(_from.Value, TimeSpan.Zero) : null,
+                _to.HasValue ? new DateTimeOffset(_to.Value.AddDays(1), TimeSpan.Zero) : null,
+                string.IsNullOrEmpty(_action) ? null : _action,
+                _userId,
+                string.IsNullOrWhiteSpace(_path) ? null : _path.Trim(),
+                _skip, _take);
+            _page = await Repo.SearchAsync(filter, CancellationToken.None);
+        }
+        catch
+        {
+            _page = new AuditPage<WebsiteEventRow>(Array.Empty<WebsiteEventRow>(), 0, _skip, _take);
+        }
+        _loading = false;
+    }
+
+    private async Task OnFilterChanged() { _skip = 0; await LoadAsync(); }
+    private async Task OnSearchTyped()
+    {
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        try { await Task.Delay(280, _searchCts.Token); _skip = 0; await LoadAsync(); } catch (TaskCanceledException) { }
+    }
+    private async Task PrevPage() { if (_skip > 0) { _skip -= _take; await LoadAsync(); } }
+    private async Task NextPage() { if (_skip + _take < _page.Total) { _skip += _take; await LoadAsync(); } }
+}

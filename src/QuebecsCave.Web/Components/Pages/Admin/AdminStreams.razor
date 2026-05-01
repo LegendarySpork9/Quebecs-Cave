@@ -1,0 +1,226 @@
+@page "/admin/streams"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using QuebecsCave.Core.Domain
+@using QuebecsCave.Core.Repositories
+@using QuebecsCave.Core.Time
+@using QuebecsCave.Services.Admin
+@using QuebecsCave.Services.Streams
+@using QuebecsCave.Web.Auth
+@using DomainStream = QuebecsCave.Core.Domain.Stream
+@attribute [Authorize(Policy = AuthorizationPolicies.Streamer)]
+@inject IStreamRepository Streams
+@inject IGameRepository Games
+@inject IAuditHistoryWriter Audit
+@inject IClock Clock
+
+<PageTitle>Streams admin · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Streams</h1>
+    <p class="muted">Add, edit, retire archive entries. The downloader (Phase 9) creates these automatically.</p>
+    <button class="btn btn-primary" @onclick="StartCreate">+ New stream</button>
+</header>
+
+@if (_form is not null)
+{
+    <div class="card admin-form">
+        <h3>@(_form.StreamId == 0 ? "New stream" : "Edit stream")</h3>
+        <div class="form-grid">
+            <label>Title<input @bind="_form.Title" /></label>
+            <label>Game
+                <select @bind="_form.GameId">
+                    <option value="0">— select —</option>
+                    @foreach (var g in _games) { <option value="@g.GameId">@g.Name</option> }
+                </select>
+            </label>
+            <label>Streamed at<input type="datetime-local" @bind="_form.StreamedAt" /></label>
+            <label>Duration (sec)<input type="number" min="0" @bind="_form.DurationSeconds" /></label>
+            <label class="span-2">Video URL<input @bind="_form.VideoUrl" placeholder="https://vod.example/.../12345.mp4" /></label>
+            <label>Twitch VOD ID<input @bind="_form.TwitchVodId" placeholder="2760085764" /></label>
+            <label>Thumbnail URL<input @bind="_form.ThumbnailUrl" /></label>
+            <label class="span-2">Description<textarea rows="3" @bind="_form.Description"></textarea></label>
+        </div>
+        <div class="form-actions">
+            <span class="spacer"></span>
+            <button class="btn btn-ghost" type="button" @onclick="CancelForm">Cancel</button>
+            <button class="btn btn-primary" type="button" @onclick="SaveAsync"
+                    disabled="@(string.IsNullOrWhiteSpace(_form.Title) || _form.GameId == 0)">Save</button>
+        </div>
+        @if (!string.IsNullOrEmpty(_status)) { <p class="muted small">@_status</p> }
+    </div>
+}
+
+<div class="card audit-table-wrap">
+    <table class="audit-table">
+        <thead><tr><th>When</th><th>Title</th><th>Game</th><th>VOD</th><th>Duration</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var s in _streams)
+        {
+            <tr>
+                <td><time>@s.StreamedAt.ToLocalTime().ToString("dd MMM yyyy")</time></td>
+                <td>@s.Title</td>
+                <td>@_gamesById.GetValueOrDefault(s.GameId)?.Name ?? "—"</td>
+                <td>@(s.TwitchVodId ?? "—")</td>
+                <td>@(s.DurationSeconds / 60) min</td>
+                <td class="row-actions">
+                    <button class="btn btn-ghost btn-tiny" @onclick="() => StartEdit(s)">Edit</button>
+                    <button class="btn btn-ghost btn-tiny danger" @onclick="() => DeleteAsync(s)">Delete</button>
+                </td>
+            </tr>
+        }
+        @if (_streams.Count == 0) { <tr><td colspan="6" class="muted center">No streams yet.</td></tr> }
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .admin-form { padding: 1.25rem; margin-bottom: 1.5rem; }
+    .admin-form h3 { margin-bottom: 1rem; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.85rem; }
+    .form-grid label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.82rem; color: var(--text-muted); }
+    .form-grid label.span-2 { grid-column: span 2; }
+    .form-grid textarea { font-family: var(--font-body); resize: vertical; }
+    .form-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
+    .row-actions { display: flex; gap: 0.35rem; }
+    .danger { color: var(--danger); }
+</style>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IReadOnlyList<DomainStream> _streams = Array.Empty<DomainStream>();
+    private IReadOnlyList<Game> _games = Array.Empty<Game>();
+    private Dictionary<int, Game> _gamesById = new();
+    private Form? _form;
+    private string? _status;
+
+    private sealed class Form
+    {
+        public int StreamId { get; set; }
+        public string Title { get; set; } = "";
+        public int GameId { get; set; }
+        public DateTime StreamedAt { get; set; } = DateTime.Now;
+        public int DurationSeconds { get; set; }
+        public string VideoUrl { get; set; } = "";
+        public string? ThumbnailUrl { get; set; }
+        public string? TwitchVodId { get; set; }
+        public string? Description { get; set; }
+    }
+
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            _games = await Games.ListAsync(CancellationToken.None);
+            _gamesById = _games.ToDictionary(g => g.GameId);
+            var filter = new StreamFilter(null, null, null, null, 0, 100);
+            _streams = await Streams.ListAsync(filter, CancellationToken.None);
+        }
+        catch
+        {
+            _streams = Array.Empty<DomainStream>();
+            _games = Array.Empty<Game>();
+            _gamesById = new();
+        }
+    }
+
+    private void StartCreate()
+    {
+        _form = new Form { StreamedAt = DateTime.Now };
+        _status = null;
+    }
+
+    private void StartEdit(DomainStream s)
+    {
+        _form = new Form
+        {
+            StreamId = s.StreamId,
+            Title = s.Title,
+            GameId = s.GameId,
+            StreamedAt = s.StreamedAt.LocalDateTime,
+            DurationSeconds = s.DurationSeconds,
+            VideoUrl = s.VideoUrl,
+            ThumbnailUrl = s.ThumbnailUrl,
+            TwitchVodId = s.TwitchVodId,
+            Description = s.Description,
+        };
+        _status = null;
+    }
+
+    private void CancelForm() { _form = null; _status = null; }
+
+    private async Task SaveAsync()
+    {
+        if (_form is null) return;
+        var userId = await ResolveUserIdAsync();
+        var streamedAt = new DateTimeOffset(_form.StreamedAt, TimeZoneInfo.Local.GetUtcOffset(_form.StreamedAt));
+        try
+        {
+            if (_form.StreamId == 0)
+            {
+                var entity = new DomainStream
+                {
+                    Title = _form.Title.Trim(),
+                    Description = string.IsNullOrWhiteSpace(_form.Description) ? null : _form.Description,
+                    GameId = _form.GameId,
+                    StreamedAt = streamedAt,
+                    DurationSeconds = Math.Max(0, _form.DurationSeconds),
+                    VideoUrl = _form.VideoUrl.Trim(),
+                    ThumbnailUrl = string.IsNullOrWhiteSpace(_form.ThumbnailUrl) ? null : _form.ThumbnailUrl,
+                    TwitchVodId = string.IsNullOrWhiteSpace(_form.TwitchVodId) ? null : _form.TwitchVodId,
+                    CreatedAt = Clock.Now,
+                };
+                var id = await Streams.CreateAsync(entity, CancellationToken.None);
+                await Audit.RecordCreateAsync("Stream", id, entity, userId, CancellationToken.None);
+            }
+            else
+            {
+                var before = _streams.FirstOrDefault(s => s.StreamId == _form.StreamId);
+                var updated = new DomainStream
+                {
+                    StreamId = _form.StreamId,
+                    Title = _form.Title.Trim(),
+                    Description = string.IsNullOrWhiteSpace(_form.Description) ? null : _form.Description,
+                    GameId = _form.GameId,
+                    StreamedAt = streamedAt,
+                    DurationSeconds = Math.Max(0, _form.DurationSeconds),
+                    VideoUrl = _form.VideoUrl.Trim(),
+                    ThumbnailUrl = string.IsNullOrWhiteSpace(_form.ThumbnailUrl) ? null : _form.ThumbnailUrl,
+                    TwitchVodId = string.IsNullOrWhiteSpace(_form.TwitchVodId) ? null : _form.TwitchVodId,
+                    CreatedAt = before?.CreatedAt ?? Clock.Now,
+                };
+                await Streams.UpdateAsync(updated, CancellationToken.None);
+                if (before is not null)
+                {
+                    await Audit.RecordUpdateAsync("Stream", updated.StreamId, before, updated, userId, CancellationToken.None);
+                }
+            }
+            _form = null;
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _status = "Save failed: " + ex.Message; }
+    }
+
+    private async Task DeleteAsync(DomainStream s)
+    {
+        var userId = await ResolveUserIdAsync();
+        try
+        {
+            await Streams.DeleteAsync(s.StreamId, CancellationToken.None);
+            await Audit.RecordDeleteAsync("Stream", s.StreamId, userId, CancellationToken.None);
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _status = "Delete failed (reactions/views may still reference): " + ex.Message; }
+    }
+
+    private async Task<int?> ResolveUserIdAsync()
+    {
+        if (AuthState is null) return null;
+        var state = await AuthState;
+        return int.TryParse(state.User.FindFirst("user_id")?.Value, out var id) ? id : null;
+    }
+}

@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/QuebecsCave.Core/QuebecsCave.Core.csproj" />
+    <Project Path="src/QuebecsCave.Data/QuebecsCave.Data.csproj" />
+    <Project Path="src/QuebecsCave.Downloader/QuebecsCave.Downloader.csproj" />
+    <Project Path="src/QuebecsCave.Services/QuebecsCave.Services.csproj" />
+    <Project Path="src/QuebecsCave.Web/QuebecsCave.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/QuebecsCave.Core.Tests/QuebecsCave.Core.Tests.csproj" />
+    <Project Path="tests/QuebecsCave.Downloader.Tests/QuebecsCave.Downloader.Tests.csproj" />
+    <Project Path="tests/QuebecsCave.Services.Tests/QuebecsCave.Services.Tests.csproj" />
+    <Project Path="tests/QuebecsCave.Web.Tests/QuebecsCave.Web.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,145 @@
+@page "/admin/audit/api"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using QuebecsCave.Core.Audit
+@using QuebecsCave.Web.Auth
+@attribute [Authorize(Policy = AuthorizationPolicies.AuditAccess)]
+@inject IApiCallLogQueryRepository Repo
+
+<PageTitle>API audit · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>API audit</h1>
+    <p class="muted">Every <code>/api/*</code> call: method, path, status, duration, user.</p>
+</header>
+
+<div class="card filter-bar">
+    <div class="filter">
+        <label>Method</label>
+        <select @bind="_method" @bind:after="OnFilterChanged">
+            <option value="">Any</option>
+            <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
+        </select>
+    </div>
+    <div class="filter">
+        <label>Status</label>
+        <input type="number" min="100" max="599" placeholder="200" @bind="_status" @bind:after="OnFilterChanged" />
+    </div>
+    <div class="filter grow">
+        <label>Path contains</label>
+        <input type="search" placeholder="/api/ingest…" @bind="_path" @bind:event="oninput" @bind:after="OnSearchTyped" />
+    </div>
+    <div class="filter">
+        <label>From</label>
+        <input type="date" @bind="_from" @bind:after="OnFilterChanged" />
+    </div>
+    <div class="filter">
+        <label>To</label>
+        <input type="date" @bind="_to" @bind:after="OnFilterChanged" />
+    </div>
+</div>
+
+@if (_loading)
+{
+    <p class="muted">Loading…</p>
+}
+else
+{
+    <p class="muted small results-count">
+        @_page.Total result@(_page.Total == 1 ? "" : "s")
+        @if (_page.Total > 0)
+        {
+            <text> · showing @(_page.Skip + 1)–@Math.Min(_page.Skip + _page.Items.Count, _page.Total)</text>
+        }
+    </p>
+
+    <div class="card audit-table-wrap">
+        <table class="audit-table">
+            <thead>
+                <tr>
+                    <th>When</th><th>Method</th><th>Path</th><th>Status</th><th>User</th><th>Dur</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _page.Items)
+                {
+                    <tr class="@(row.ResponseStatus >= 500 ? "row-error" : row.ResponseStatus >= 400 ? "row-warn" : "")">
+                        <td><time>@row.CalledAt.ToLocalTime().ToString("dd MMM HH:mm:ss")</time></td>
+                        <td><span class="method method-@row.Method.ToLowerInvariant()">@row.Method</span></td>
+                        <td>
+                            <code>@row.Path</code>
+                            @if (!string.IsNullOrEmpty(row.QueryString))
+                            {
+                                <code class="muted">@row.QueryString</code>
+                            }
+                        </td>
+                        <td><span class="status status-@(row.ResponseStatus / 100)">@row.ResponseStatus</span></td>
+                        <td>@(row.UserId?.ToString() ?? "—")</td>
+                        <td>@row.DurationMs ms</td>
+                    </tr>
+                }
+                @if (_page.Items.Count == 0)
+                {
+                    <tr><td colspan="6" class="muted center">No matches.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (_page.Total > _take)
+    {
+        <nav class="pager">
+            <button class="btn btn-ghost" @onclick="PrevPage" disabled="@(_skip == 0)">← Newer</button>
+            <span class="muted small">Page @((_skip / _take) + 1) of @((int)Math.Ceiling(_page.Total / (double)_take))</span>
+            <button class="btn btn-ghost" @onclick="NextPage" disabled="@(_skip + _take >= _page.Total)">Older →</button>
+        </nav>
+    }
+}
+
+@code {
+    private const int _take = 25;
+    private AuditPage<ApiCallLogRow> _page = new(Array.Empty<ApiCallLogRow>(), 0, 0, _take);
+    private bool _loading = true;
+    private int _skip;
+    private string? _method;
+    private int? _status;
+    private string _path = "";
+    private DateTime? _from, _to;
+    private CancellationTokenSource? _searchCts;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            var filter = new ApiCallLogFilter(
+                From: _from.HasValue ? new DateTimeOffset(_from.Value, TimeSpan.Zero) : null,
+                To: _to.HasValue ? new DateTimeOffset(_to.Value.AddDays(1), TimeSpan.Zero) : null,
+                UserId: null,
+                PathContains: string.IsNullOrWhiteSpace(_path) ? null : _path.Trim(),
+                StatusCode: _status,
+                Method: string.IsNullOrEmpty(_method) ? null : _method,
+                Skip: _skip,
+                Take: _take);
+            _page = await Repo.SearchAsync(filter, CancellationToken.None);
+        }
+        catch
+        {
+            _page = new AuditPage<ApiCallLogRow>(Array.Empty<ApiCallLogRow>(), 0, _skip, _take);
+        }
+        _loading = false;
+    }
+
+    private async Task OnFilterChanged() { _skip = 0; await LoadAsync(); }
+    private async Task OnSearchTyped()
+    {
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        try { await Task.Delay(280, _searchCts.Token); _skip = 0; await LoadAsync(); } catch (TaskCanceledException) { }
+    }
+    private async Task PrevPage() { if (_skip > 0) { _skip = Math.Max(0, _skip - _take); await LoadAsync(); } }
+    private async Task NextPage() { if (_skip + _take < _page.Total) { _skip += _take; await LoadAsync(); } }
+}

@@ -1,0 +1,142 @@
+@page "/admin/reports"
+@using Microsoft.AspNetCore.Authorization
+@using QuebecsCave.Core.Reports
+@using QuebecsCave.Services.Reports
+@using QuebecsCave.Web.Auth
+@attribute [Authorize(Policy = AuthorizationPolicies.ReportsAccess)]
+@inject IReportsService ReportsSvc
+
+<PageTitle>Reports · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Reports</h1>
+    <p class="muted">A snapshot of the archive — totals, top performers, last 30 days of views.</p>
+</header>
+
+@if (_loading)
+{
+    <p class="muted">Crunching numbers…</p>
+}
+else if (_bundle is null)
+{
+    <p class="muted">Reports unavailable. Is the database reachable?</p>
+}
+else
+{
+    <section class="kpis">
+        <div class="card kpi"><div class="kpi-value">@_bundle.Kpis.TotalStreams</div><div class="kpi-label">Streams</div></div>
+        <div class="card kpi"><div class="kpi-value">@_bundle.Kpis.TotalViews</div><div class="kpi-label">Views</div></div>
+        <div class="card kpi"><div class="kpi-value">@_bundle.Kpis.TotalReactions</div><div class="kpi-label">Reactions</div></div>
+        <div class="card kpi"><div class="kpi-value">@_bundle.Kpis.TotalGames</div><div class="kpi-label">Games</div></div>
+        <div class="card kpi"><div class="kpi-value">@_bundle.Kpis.TotalEmojis</div><div class="kpi-label">Emojis</div></div>
+    </section>
+
+    <div class="reports-row">
+        <section class="card report-section">
+            <h2>Top streams</h2>
+            @if (_bundle.TopStreams.Count == 0) { <p class="muted">No streams yet.</p> }
+            else
+            {
+                <ol class="lean-list">
+                    @foreach (var s in _bundle.TopStreams)
+                    {
+                        <li>
+                            <a href="@($"/streams/{s.StreamId}")">@s.Title</a>
+                            <span class="lean-meta">@s.ViewCount view@(s.ViewCount == 1 ? "" : "s") · @s.StreamedAt.ToLocalTime().ToString("d MMM yyyy")</span>
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
+
+        <section class="card report-section">
+            <h2>Top games</h2>
+            @if (_bundle.TopGames.Count == 0) { <p class="muted">No games yet.</p> }
+            else
+            {
+                <ol class="lean-list">
+                    @foreach (var g in _bundle.TopGames)
+                    {
+                        <li>
+                            <a href="@($"/games/{g.Slug}")">@g.Name</a>
+                            <span class="lean-meta">@g.StreamCount stream@(g.StreamCount == 1 ? "" : "s") · @(g.ViewCount ?? 0) views</span>
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
+    </div>
+
+    <section class="card report-section">
+        <h2>Reactions per emoji</h2>
+        @if (_bundle.TopEmojis.Count == 0) { <p class="muted">No reactions yet.</p> }
+        else
+        {
+            <div class="emoji-grid">
+                @foreach (var e in _bundle.TopEmojis)
+                {
+                    <div class="emoji-stat">
+                        <img src="@e.ImageUrl" alt="@e.Code" />
+                        <div>
+                            <div class="emoji-code">@e.Code</div>
+                            <div class="emoji-count">@e.ReactionCount</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="card report-section">
+        <h2>Views — last 30 days</h2>
+        @if (_bundle.ViewsLast30Days.Count == 0)
+        {
+            <p class="muted">No views in the last 30 days.</p>
+        }
+        else
+        {
+            var max = _bundle.ViewsLast30Days.Max(d => d.Count);
+            <div class="bar-chart">
+                @foreach (var d in _bundle.ViewsLast30Days)
+                {
+                    var height = max > 0 ? (int)Math.Max(2, d.Count * 100.0 / max) : 0;
+                    <div class="bar-wrap" title="@d.Date.ToString("d MMM"): @d.Count">
+                        <div class="bar" style="height: @(height)%"></div>
+                        <div class="bar-label">@d.Date.ToString("dd")</div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
+
+<style>
+    .reports-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+    .report-section { padding: 1.25rem; }
+    .report-section h2 { font-size: 1.1rem; margin-bottom: 0.85rem; }
+    .lean-list { padding-left: 1rem; margin: 0; }
+    .lean-list li { margin-bottom: 0.4rem; }
+    .lean-meta { display: block; color: var(--text-muted); font-size: 0.82rem; }
+    .emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+    .emoji-stat { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border-radius: var(--radius-sm); background: var(--bg-elevated); }
+    .emoji-stat img { width: 32px; height: 32px; }
+    .emoji-code { font-size: 0.82rem; color: var(--text-muted); }
+    .emoji-count { font-family: var(--font-display); font-weight: 700; color: var(--accent); font-size: 1.05rem; }
+    .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding-top: 0.5rem; }
+    .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; min-width: 0; }
+    .bar { width: 100%; max-width: 24px; background: var(--accent); border-radius: 3px 3px 0 0; transition: height var(--transition-med); }
+    .bar:hover { background: var(--accent-hover); }
+    .bar-label { font-size: 0.7rem; color: var(--text-faint); margin-top: 4px; }
+</style>
+
+@code {
+    private bool _loading = true;
+    private ReportsBundle? _bundle;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _bundle = await ReportsSvc.GetReportsAsync(CancellationToken.None); }
+        catch { _bundle = null; }
+        _loading = false;
+    }
+}

@@ -1,0 +1,239 @@
+@page "/admin/games"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using QuebecsCave.Core.Domain
+@using QuebecsCave.Core.Repositories
+@using QuebecsCave.Core.Time
+@using QuebecsCave.Core.Twitch
+@using QuebecsCave.Core.Util
+@using QuebecsCave.Services.Admin
+@using QuebecsCave.Web.Auth
+@attribute [Authorize(Policy = AuthorizationPolicies.Streamer)]
+@inject IGameRepository Games
+@inject ITwitchClient Twitch
+@inject IAuditHistoryWriter Audit
+@inject IClock Clock
+
+<PageTitle>Games admin · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Games</h1>
+    <p class="muted">Manage the game taxonomy. New games can pull box-art from Twitch.</p>
+    <button class="btn btn-primary" @onclick="StartCreate">+ New game</button>
+</header>
+
+@if (_form is not null)
+{
+    <div class="card admin-form">
+        <h3>@(_form.GameId == 0 ? "New game" : "Edit game")</h3>
+        <div class="form-grid">
+            <label>Name<input @bind="_form.Name" placeholder="Stardew Valley" /></label>
+            <label>Slug
+                <input @bind="_form.Slug" placeholder="auto-generated" />
+                <button class="btn btn-ghost btn-tiny" type="button" @onclick="RegenerateSlug">Regen from name</button>
+            </label>
+            <label>Twitch Game ID<input @bind="_form.TwitchGameId" placeholder="(optional)" /></label>
+            <label>Icon URL
+                <input @bind="_form.IconUrl" placeholder="https://…" />
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" @bind="_form.IsCustomIcon" />
+                Custom icon (don't refetch from Twitch)
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <button class="btn btn-ghost" type="button" @onclick="FetchFromTwitch" disabled="@(string.IsNullOrWhiteSpace(_form.Name))">
+                Fetch icon from Twitch
+            </button>
+            <span class="spacer"></span>
+            <button class="btn btn-ghost" type="button" @onclick="CancelForm">Cancel</button>
+            <button class="btn btn-primary" type="button" @onclick="SaveAsync" disabled="@(string.IsNullOrWhiteSpace(_form.Name))">
+                Save
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(_status)) { <p class="muted small">@_status</p> }
+    </div>
+}
+
+<div class="card audit-table-wrap">
+    <table class="audit-table">
+        <thead><tr><th></th><th>Name</th><th>Slug</th><th>Twitch ID</th><th>Created</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var g in _games)
+        {
+            <tr>
+                <td>
+                    @if (!string.IsNullOrEmpty(g.IconUrl))
+                    {
+                        <img src="@g.IconUrl" alt="" class="game-thumb" />
+                    }
+                </td>
+                <td>@g.Name</td>
+                <td><code>@g.Slug</code></td>
+                <td>@(g.TwitchGameId ?? "—")</td>
+                <td><time>@g.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</time></td>
+                <td class="row-actions">
+                    <button class="btn btn-ghost btn-tiny" @onclick="() => StartEdit(g)">Edit</button>
+                    <button class="btn btn-ghost btn-tiny danger" @onclick="() => DeleteAsync(g)">Delete</button>
+                </td>
+            </tr>
+        }
+        @if (_games.Count == 0) { <tr><td colspan="6" class="muted center">No games yet.</td></tr> }
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .admin-form { padding: 1.25rem; margin-bottom: 1.5rem; }
+    .admin-form h3 { margin-bottom: 1rem; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.85rem; }
+    .form-grid label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.82rem; color: var(--text-muted); }
+    .form-grid label.checkbox { flex-direction: row; align-items: center; }
+    .form-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+    .row-actions { display: flex; gap: 0.35rem; }
+    .danger { color: var(--danger); }
+    .danger:hover { background: rgba(217,106,94,0.1); border-color: var(--danger); }
+    .game-thumb { width: 36px; height: 48px; object-fit: cover; border-radius: 3px; }
+</style>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IReadOnlyList<Game> _games = Array.Empty<Game>();
+    private Form? _form;
+    private string? _status;
+
+    private sealed class Form
+    {
+        public int GameId { get; set; }
+        public string Name { get; set; } = "";
+        public string Slug { get; set; } = "";
+        public string? IconUrl { get; set; }
+        public string? TwitchGameId { get; set; }
+        public bool IsCustomIcon { get; set; }
+    }
+
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        try { _games = await Games.ListAsync(CancellationToken.None); } catch { _games = Array.Empty<Game>(); }
+    }
+
+    private void StartCreate()
+    {
+        _form = new Form();
+        _status = null;
+    }
+
+    private void StartEdit(Game g)
+    {
+        _form = new Form
+        {
+            GameId = g.GameId,
+            Name = g.Name,
+            Slug = g.Slug,
+            IconUrl = g.IconUrl,
+            TwitchGameId = g.TwitchGameId,
+            IsCustomIcon = g.IsCustomIcon,
+        };
+        _status = null;
+    }
+
+    private void CancelForm() { _form = null; _status = null; }
+
+    private void RegenerateSlug()
+    {
+        if (_form is null) return;
+        _form.Slug = SlugGenerator.Slugify(_form.Name);
+    }
+
+    private async Task FetchFromTwitch()
+    {
+        if (_form is null || string.IsNullOrWhiteSpace(_form.Name)) return;
+        _status = "Fetching from Twitch…";
+        try
+        {
+            var games = await Twitch.GetGamesByNameAsync(new[] { _form.Name }, CancellationToken.None);
+            var first = games.FirstOrDefault();
+            if (first is null) { _status = "Twitch returned no match for that name."; return; }
+            _form.TwitchGameId = first.Id;
+            _form.IconUrl = first.BoxArtUrlTemplate.Replace("{width}", "285").Replace("{height}", "380");
+            _form.IsCustomIcon = false;
+            _status = $"Pulled icon for {first.Name}.";
+        }
+        catch (Exception ex) { _status = "Twitch fetch failed: " + ex.Message; }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_form is null) return;
+        if (string.IsNullOrWhiteSpace(_form.Slug))
+        {
+            _form.Slug = SlugGenerator.Slugify(_form.Name);
+        }
+        var userId = await ResolveUserIdAsync();
+
+        try
+        {
+            if (_form.GameId == 0)
+            {
+                var game = new Game
+                {
+                    Name = _form.Name.Trim(),
+                    Slug = _form.Slug.Trim(),
+                    IconUrl = string.IsNullOrWhiteSpace(_form.IconUrl) ? null : _form.IconUrl,
+                    TwitchGameId = string.IsNullOrWhiteSpace(_form.TwitchGameId) ? null : _form.TwitchGameId,
+                    IsCustomIcon = _form.IsCustomIcon,
+                    CreatedAt = Clock.Now,
+                };
+                var id = await Games.CreateAsync(game, CancellationToken.None);
+                await Audit.RecordCreateAsync(nameof(Game), id, game, userId, CancellationToken.None);
+            }
+            else
+            {
+                var before = _games.FirstOrDefault(g => g.GameId == _form.GameId);
+                var updated = new Game
+                {
+                    GameId = _form.GameId,
+                    Name = _form.Name.Trim(),
+                    Slug = _form.Slug.Trim(),
+                    IconUrl = string.IsNullOrWhiteSpace(_form.IconUrl) ? null : _form.IconUrl,
+                    TwitchGameId = string.IsNullOrWhiteSpace(_form.TwitchGameId) ? null : _form.TwitchGameId,
+                    IsCustomIcon = _form.IsCustomIcon,
+                    CreatedAt = before?.CreatedAt ?? Clock.Now,
+                };
+                await Games.UpdateAsync(updated, CancellationToken.None);
+                if (before is not null)
+                {
+                    await Audit.RecordUpdateAsync(nameof(Game), updated.GameId, before, updated, userId, CancellationToken.None);
+                }
+            }
+            _form = null;
+            _status = null;
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _status = "Save failed: " + ex.Message; }
+    }
+
+    private async Task DeleteAsync(Game g)
+    {
+        var userId = await ResolveUserIdAsync();
+        try
+        {
+            await Games.DeleteAsync(g.GameId, CancellationToken.None);
+            await Audit.RecordDeleteAsync(nameof(Game), g.GameId, userId, CancellationToken.None);
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _status = "Delete failed (streams may still reference this game): " + ex.Message; }
+    }
+
+    private async Task<int?> ResolveUserIdAsync()
+    {
+        if (AuthState is null) return null;
+        var state = await AuthState;
+        return int.TryParse(state.User.FindFirst("user_id")?.Value, out var id) ? id : null;
+    }
+}

@@ -1,0 +1,49 @@
+@page "/admin/audit/schema"
+@using Microsoft.AspNetCore.Authorization
+@using QuebecsCave.Core.Audit
+@using QuebecsCave.Web.Auth
+@attribute [Authorize(Policy = AuthorizationPolicies.AuditAccess)]
+@inject ISchemaVersionQueryRepository Repo
+
+<PageTitle>Schema · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Schema versions</h1>
+    <p class="muted">
+        Migrations applied by DbUp on app startup. The script content lives in
+        <code>src/QuebecsCave.Data/Migrations/</code> as embedded resources.
+    </p>
+</header>
+
+@if (_rows.Count == 0)
+{
+    <p class="muted">No migrations applied yet (or SQL is offline).</p>
+}
+else
+{
+    <div class="card audit-table-wrap">
+        <table class="audit-table">
+            <thead><tr><th>#</th><th>Script</th><th>Applied</th></tr></thead>
+            <tbody>
+            @foreach (var row in _rows)
+            {
+                <tr>
+                    <td>@row.Id</td>
+                    <td><code>@row.ScriptName</code></td>
+                    <td><time>@row.AppliedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss")</time></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<SchemaVersionRow> _rows = Array.Empty<SchemaVersionRow>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _rows = await Repo.ListAsync(CancellationToken.None); }
+        catch { _rows = Array.Empty<SchemaVersionRow>(); }
+    }
+}

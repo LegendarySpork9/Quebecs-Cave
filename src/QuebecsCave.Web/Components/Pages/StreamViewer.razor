@@ -1,0 +1,214 @@
+@page "/streams/{StreamId:int}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using QuebecsCave.Core.Domain
+@using QuebecsCave.Services.Emojis
+@using QuebecsCave.Services.Reactions
+@using QuebecsCave.Services.Streams
+@using QuebecsCave.Web.Audit
+@inject IStreamService StreamService
+@inject IEmojiService EmojiService
+@inject IReactionService ReactionService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Nav
+
+<PageTitle>@(_card?.Title ?? "Stream") · Quebec's Cave</PageTitle>
+
+@if (_loading)
+{
+    <p class="muted">Loading…</p>
+}
+else if (_card is null)
+{
+    <div class="not-here">
+        <img src="/emojis/quebBlind.png" alt="" />
+        <h1>Stream not found</h1>
+        <p class="muted">It might have been removed, or the link is wrong.</p>
+        <a href="/streams" class="btn btn-primary">Back to streams</a>
+    </div>
+}
+else
+{
+    <article class="viewer">
+        <div class="player-wrap">
+            @if (!string.IsNullOrEmpty(_card.TwitchVodId))
+            {
+                <iframe class="player"
+                        src="@TwitchEmbedSrc(_card.TwitchVodId)"
+                        allow="autoplay; fullscreen"
+                        allowfullscreen
+                        frameborder="0"></iframe>
+            }
+            else
+            {
+                <video class="player" controls preload="metadata"
+                       poster="@(_card.ThumbnailUrl ?? "")"
+                       src="@_card.VideoUrl"></video>
+            }
+        </div>
+
+        <header class="viewer-head">
+            <h1>@_card.Title</h1>
+            <div class="viewer-meta">
+                <a href="@($"/games/{_card.GameSlug}")" class="game-chip">
+                    @if (!string.IsNullOrEmpty(_card.GameIconUrl))
+                    {
+                        <img src="@_card.GameIconUrl" alt="" />
+                    }
+                    <span>@_card.GameName</span>
+                </a>
+                <time class="muted" datetime="@_card.StreamedAt.ToString("o")">
+                    @_card.StreamedAt.ToLocalTime().ToString("d MMM yyyy")
+                </time>
+                <span class="muted">·</span>
+                <span class="muted">@FormatDuration(_card.DurationSeconds)</span>
+            </div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(_card.Description))
+        {
+            <p class="viewer-desc">@_card.Description</p>
+        }
+
+        <section class="reactions">
+            <header class="reactions-head">
+                <h3>React</h3>
+                <span class="faint small">
+                    @if (_userId is null) { <text>Sign in with Twitch to react · counts are live for everyone.</text> }
+                    else { <text>Click any emoji to toggle your reaction.</text> }
+                </span>
+            </header>
+            <div class="reaction-bar">
+                @foreach (var e in _emojis)
+                {
+                    var state = _states.FirstOrDefault(s => s.EmojiId == e.EmojiId);
+                    var lit = state?.ByCurrentUser ?? false;
+                    var count = state?.Count ?? 0;
+                    <button class="reaction @(lit ? "reaction-lit" : "")"
+                            type="button"
+                            disabled="@(_userId is null || _busy)"
+                            @onclick="() => ToggleAsync(e.EmojiId, lit)"
+                            title="@e.Name">
+                        <img src="@e.ImageUrl" alt="@e.Name" width="28" height="28" />
+                        <span class="reaction-count">@count</span>
+                    </button>
+                }
+            </div>
+        </section>
+
+        @if (_related.Count > 0)
+        {
+            <section class="related">
+                <h2>More from @_card.GameName</h2>
+                <div class="related-grid">
+                    @foreach (var card in _related)
+                    {
+                        <a class="related-card" href="@($"/streams/{card.StreamId}")">
+                            @if (!string.IsNullOrEmpty(card.ThumbnailUrl))
+                            {
+                                <img src="@card.ThumbnailUrl" alt="" loading="lazy" />
+                            }
+                            else
+                            {
+                                <div class="related-fallback">
+                                    <img src="/emojis/quebBorked.png" alt="" title="Thumbnail pending" />
+                                </div>
+                            }
+                            <h4>@card.Title</h4>
+                            <span class="faint small">@card.StreamedAt.ToLocalTime().ToString("d MMM yyyy")</span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+    </article>
+}
+
+@code {
+    [Parameter] public int StreamId { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private bool _loading = true;
+    private bool _busy;
+    private StreamCard? _card;
+    private IReadOnlyList<StreamCard> _related = Array.Empty<StreamCard>();
+    private IReadOnlyList<Emoji> _emojis = Array.Empty<Emoji>();
+    private IReadOnlyList<ReactionState> _states = Array.Empty<ReactionState>();
+    private int? _userId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        try
+        {
+            await ResolveUserIdAsync();
+            var cardTask = StreamService.GetByIdAsync(StreamId, CancellationToken.None);
+            var emojisTask = EmojiService.ListActiveAsync(CancellationToken.None);
+            await Task.WhenAll(cardTask, emojisTask);
+            _card = cardTask.Result;
+            _emojis = emojisTask.Result;
+            if (_card is not null)
+            {
+                _related = await StreamService.RelatedAsync(_card.StreamId, _card.GameId, 4, CancellationToken.None);
+                _states = await ReactionService.GetStateAsync(_card.StreamId, _userId, CancellationToken.None);
+            }
+            else
+            {
+                _related = Array.Empty<StreamCard>();
+                _states = Array.Empty<ReactionState>();
+            }
+        }
+        catch
+        {
+            _card = null;
+            _related = Array.Empty<StreamCard>();
+            _emojis = Array.Empty<Emoji>();
+            _states = Array.Empty<ReactionState>();
+        }
+        _loading = false;
+    }
+
+    private async Task ToggleAsync(int emojiId, bool currentlyLit)
+    {
+        if (_card is null || _userId is null || _busy) return;
+        _busy = true;
+        try
+        {
+            var ipHash = IpHasher.Hash(HttpContextAccessor.HttpContext?.Connection.RemoteIpAddress);
+            if (currentlyLit)
+            {
+                await ReactionService.RemoveAsync(_card.StreamId, _userId.Value, emojiId, ipHash, CancellationToken.None);
+            }
+            else
+            {
+                await ReactionService.AddAsync(_card.StreamId, _userId.Value, emojiId, ipHash, CancellationToken.None);
+            }
+            _states = await ReactionService.GetStateAsync(_card.StreamId, _userId, CancellationToken.None);
+        }
+        catch { /* swallow; user can retry */ }
+        finally { _busy = false; }
+    }
+
+    private async Task ResolveUserIdAsync()
+    {
+        if (AuthState is null) { _userId = null; return; }
+        var state = await AuthState;
+        _userId = int.TryParse(state.User.FindFirst("user_id")?.Value, out var id) ? id : null;
+    }
+
+    private string TwitchEmbedSrc(string vodId)
+    {
+        var host = "localhost";
+        try { host = new Uri(Nav.BaseUri).Host; } catch { /* fall through */ }
+        return $"https://player.twitch.tv/?video={Uri.EscapeDataString(vodId)}&parent={Uri.EscapeDataString(host)}&autoplay=false";
+    }
+
+    private static string FormatDuration(int seconds)
+    {
+        if (seconds <= 0) return "—";
+        var ts = TimeSpan.FromSeconds(seconds);
+        return ts.TotalHours >= 1
+            ? $"{(int)ts.TotalHours}h {ts.Minutes}m"
+            : $"{ts.Minutes}m";
+    }
+}

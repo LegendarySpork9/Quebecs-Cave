@@ -1,0 +1,90 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.Extensions.Options
+@using QuebecsCave.Core.Domain
+@using QuebecsCave.Core.Repositories
+@using QuebecsCave.Services.Identity
+@using QuebecsCave.Web.Auth
+@inject IUserRepository UserRepo
+@inject IOptions<DevAuthOptions> DevAuthOpts
+@inject IHostEnvironment HostEnv
+
+<AuthorizeView>
+    <Authorized>
+        <div class="user-menu">
+            @if (!string.IsNullOrEmpty(_avatar))
+            {
+                <img class="user-avatar" src="@_avatar" alt="" />
+            }
+            else
+            {
+                <div class="user-avatar user-avatar-placeholder">@(_displayName.Length > 0 ? _displayName[0] : '?')</div>
+            }
+            <div class="user-meta">
+                <div class="user-name">@_displayName</div>
+                <div class="user-roles">
+                    @foreach (var r in _roles.Where(r => r != RoleName.Viewer))
+                    {
+                        <span class="role-chip role-@(r.ToLowerInvariant())">@r</span>
+                    }
+                </div>
+            </div>
+            <form method="post" action="/auth/logout" class="signout">
+                <button type="submit" class="btn-icon" title="Sign out">⏏</button>
+            </form>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_storedTheme))
+        {
+            <script>
+                if (window.quebTheme && @System.Text.Json.JsonSerializer.Serialize(_storedTheme) !== document.documentElement.getAttribute("data-theme")) {
+                    window.quebTheme.set(@System.Text.Json.JsonSerializer.Serialize(_storedTheme));
+                }
+            </script>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <a class="btn btn-primary" href="/auth/twitch/login">
+            Sign in with Twitch
+        </a>
+        @if (HostEnv.IsDevelopment() && DevAuthOpts.Value.Enabled)
+        {
+            <a class="btn btn-ghost dev-login-link" href="/dev/login" title="Dev only — bypasses Twitch">
+                Dev login
+            </a>
+        }
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private string _displayName = "";
+    private string? _avatar;
+    private IReadOnlyList<string> _roles = Array.Empty<string>();
+    private string? _storedTheme;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AuthState is null) return;
+        var state = await AuthState;
+        var user = state.User;
+        if (!(user.Identity?.IsAuthenticated ?? false)) return;
+
+        _displayName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+            ?? user.FindFirst(TwitchClaimTypes.TwitchLogin)?.Value
+            ?? "";
+        _avatar = user.FindFirst("avatar_url")?.Value;
+        _roles = user.FindAll(TwitchClaimTypes.Role).Select(c => c.Value).Distinct().ToArray();
+
+        var userIdRaw = user.FindFirst("user_id")?.Value;
+        if (int.TryParse(userIdRaw, out var userId))
+        {
+            try
+            {
+                var dbUser = await UserRepo.GetByIdAsync(userId, CancellationToken.None);
+                _storedTheme = dbUser?.ThemePreference;
+            }
+            catch { /* best effort */ }
+        }
+    }
+}

@@ -1,0 +1,53 @@
+name: Check for Linked Issue
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  check-linked-issue:
+    runs-on: windows-latest
+
+    steps:
+    - name: Check if PR has linked issues in description, comments, or Development section
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const issuePattern = /#\d+/g;
+
+          const prDescription = context.payload.pull_request.body || '';
+          const prComments = await github.paginate(
+            github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            }
+          );
+
+          const linkedIssuesQuery = `query ($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  closingIssuesReferences(first: 10) {
+                    nodes {
+                      number
+                    }
+                  }
+                }
+              }
+            }`;
+
+          const result = await github.graphql(linkedIssuesQuery, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            number: context.payload.pull_request.number,
+          });
+
+          const linkedIssuesInDevelopment = result.repository.pullRequest.closingIssuesReferences.nodes.map(issue => `#${issue.number}`);
+
+          const allText = prDescription + prComments.map(comment => comment.body).join(' ') + linkedIssuesInDevelopment.join(' ');
+
+          const linkedIssues = allText.match(issuePattern) || linkedIssuesInDevelopment;
+
+          if (!linkedIssues || linkedIssues.length === 0) {
+            core.setFailed('This pull request does not have any linked issues.');
+          }

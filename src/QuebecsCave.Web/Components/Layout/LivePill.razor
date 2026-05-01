@@ -1,0 +1,37 @@
+@rendermode InteractiveServer
+@implements IDisposable
+@using QuebecsCave.Core.Twitch
+@inject ILiveStatusService Live
+
+@if (_status.IsLive)
+{
+    <a class="live-pill" href="https://twitch.tv/longlivequebec" target="_blank" rel="noopener"
+       title="@(_status.Title ?? "Live on Twitch")">
+        <span class="live-pill-label">Live</span>
+        @if (!string.IsNullOrEmpty(_status.GameName))
+        {
+            <span class="live-pill-game">· @_status.GameName</span>
+        }
+    </a>
+}
+
+@code {
+    private LiveStatus _status = LiveStatus.Offline(DateTimeOffset.MinValue);
+
+    protected override void OnInitialized()
+    {
+        _status = Live.Current;
+        Live.Changed += OnLiveChanged;
+    }
+
+    private void OnLiveChanged(LiveStatus next)
+    {
+        _ = InvokeAsync(() =>
+        {
+            _status = next;
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Live.Changed -= OnLiveChanged;
+}

@@ -1,0 +1,95 @@
+@page "/admin"
+@using Microsoft.AspNetCore.Authorization
+@using QuebecsCave.Core.Audit
+@using QuebecsCave.Web.Auth
+@attribute [Authorize(Policy = AuthorizationPolicies.AuditAccess)]
+@inject IApiCallLogQueryRepository ApiLog
+@inject IDownloaderEventQueryRepository DownloaderLog
+@inject IWebsiteEventQueryRepository WebsiteLog
+@inject IErrorLogQueryRepository ErrorLog
+@inject QuebecsCave.Core.Time.IClock Clock
+
+<PageTitle>Admin · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Admin</h1>
+    <p class="muted">
+        Operational overview. The links below are role-gated — what you can
+        click depends on whether you're the streamer, a moderator, or a developer.
+    </p>
+</header>
+
+<section class="kpis">
+    <div class="card kpi">
+        <div class="kpi-value">@_apiCalls24h</div>
+        <div class="kpi-label">API calls · 24h</div>
+    </div>
+    <div class="card kpi">
+        <div class="kpi-value">@_downloaderEvents24h</div>
+        <div class="kpi-label">Downloader events · 24h</div>
+    </div>
+    <div class="card kpi">
+        <div class="kpi-value">@_websiteEvents24h</div>
+        <div class="kpi-label">Website events · 24h</div>
+    </div>
+    <div class="card kpi @(_openErrors > 0 ? "kpi-warn" : "")">
+        <div class="kpi-value">@_openErrors</div>
+        <div class="kpi-label">Open errors</div>
+    </div>
+</section>
+
+<section class="admin-cards">
+    <AuthorizeView Policy="@AuthorizationPolicies.AuditAccess">
+        <Authorized>
+            <a class="card admin-card" href="admin/audit">
+                <h3>Audit history</h3>
+                <p class="muted">API calls · downloader · website · errors · schema versions</p>
+            </a>
+        </Authorized>
+    </AuthorizeView>
+    <AuthorizeView Policy="@AuthorizationPolicies.ReportsAccess">
+        <Authorized>
+            <a class="card admin-card" href="admin/reports">
+                <h3>Reports</h3>
+                <p class="muted">Stream views, top games, reactions per emoji, last 30 days.</p>
+            </a>
+        </Authorized>
+    </AuthorizeView>
+    <AuthorizeView Policy="@AuthorizationPolicies.Streamer">
+        <Authorized>
+            <a class="card admin-card" href="admin/streams">
+                <h3>Streams</h3>
+                <p class="muted">Add, edit, retire archive entries.</p>
+            </a>
+            <a class="card admin-card" href="admin/games">
+                <h3>Games</h3>
+                <p class="muted">Manage the game taxonomy. Auto-fetch icons from Twitch.</p>
+            </a>
+            <a class="card admin-card" href="admin/emojis">
+                <h3>Emojis</h3>
+                <p class="muted">Add, deactivate, or reorder reaction emojis.</p>
+            </a>
+            <a class="card admin-card" href="admin/developers">
+                <h3>Developers</h3>
+                <p class="muted">Grant audit-only access to trusted devs.</p>
+            </a>
+        </Authorized>
+    </AuthorizeView>
+</section>
+
+@code {
+    private int _apiCalls24h, _downloaderEvents24h, _websiteEvents24h, _openErrors;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var since = Clock.Now.AddDays(-1);
+        try
+        {
+            _apiCalls24h         = await ApiLog.CountSinceAsync(since, CancellationToken.None);
+            _downloaderEvents24h = await DownloaderLog.CountSinceAsync(since, CancellationToken.None);
+            _websiteEvents24h    = await WebsiteLog.CountSinceAsync(since, CancellationToken.None);
+            _openErrors          = await ErrorLog.CountOpenAsync(CancellationToken.None);
+        }
+        catch { /* if SQL is offline, just show zeros */ }
+    }
+}

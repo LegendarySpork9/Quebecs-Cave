@@ -1,0 +1,71 @@
+.dev-head { margin-bottom: 1.5rem; }
+
+.dev-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.dev-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    text-decoration: none;
+    color: var(--text);
+}
+
+.dev-tile-head {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.dev-tile-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 2px solid var(--accent);
+    overflow: hidden;
+    object-fit: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.dev-tile-avatar-placeholder {
+    font-size: 1.4rem;
+}
+
+.dev-tile h3 {
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+.dev-tile-cta {
+    color: var(--accent);
+    font-weight: 600;
+    margin-top: auto;
+}
+
+.dev-foot {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-soft);
+}
+
+.small { font-size: 0.85rem; }
+
+.not-here {
+    text-align: center;
+    margin: 4rem auto;
+    max-width: 460px;
+}
+.not-here img { width: 96px; height: 96px; margin-bottom: 1rem; }
+.not-here h1 { margin-bottom: 0.5rem; }
+.not-here p { margin-bottom: 1.25rem; }

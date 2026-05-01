@@ -1,0 +1,282 @@
+/* Started at: 30/04/26 07:40 | Finished planning at: 30/04/26 10:10 (2h 30m)
+
+Finished step 1 creation in: 12m 52s
+Finished step 2 creation in: 7m 8s
+Finished step 3 creation in: 11m 43s
+Finished step 4 creation in: 17m 34s
+Finished step 5 creation in: 15m 48s
+Finished step 6 creation in: 3m 21s
+Finished step 7 creation in: 18m 10s
+Finished step 8 creation in: 6m 44s
+	Revision 1 completed in: 6m 35s
+	Revision 2 completed in: 3m 23s
+	Revision 3 completed in: 2m 33s
+Finished step 9 creation in: 6m + 1m 21s
+	Revision 1 completed in: 12m 23s
+	Revision 2 completed in: 2m 51s
+	Revision 3 completed in: 3m 38s
+Finished step 10 creation in: 10m 52s
+Finished step 11 creation in: 4m 56s
+Total creation in: 2h 27m 52s
+Finished at: 01/05/26 09:05 (1d 1h 35m) (Multiple breaks between phases to focus on other things and sleep.) */
+
+Morning. I would like you to come up with a plan to make a stream archive for this twitch streamer, https://www.twitch.tv/longlivequebec. Their emojis can be found here, C:\Users\x\y\Pictures\LongLiveQuebec Emojis.
+
+I would like for the site to match his "branding" and theme. The archive is called Quebec's Cave.
+
+This archive should have a home page with links to his twitch and a set of recent streams (6) on cards on that home page.
+There should be a login button for the streamer to login which will then give them admin access to the site
+On the sidebar should be a streams button which shows a list of all the streams that you can filter based on the game and when the stream was.
+There should also be a games button on the side bar where you can see a list of the games with their icons that you can click on to be taken to a prefiltered list of streams for that game.
+When you click a stream from the list, it should take you to the stream viewer page where you can watch the video. These videos should be served by urls that point to a location where the .mp4s are stored.
+You should also be able to react to the video with one of the emojis.
+There should also be light mode and dark mode that persists across sessions.
+
+On the admin side of things:
+
+You should be able to make new game categories.
+You should be able to upload a new stream video.
+You should be able to add new emojis.
+You should be able to see a dashboard showing analytics about the archive and videos in the archive.
+
+Operation.
+
+I'd like the data to be served by an API that exists in this project.
+I'd also like an optional console app that auto downloads new streams from twitch and uploads them to the archive.
+
+Is this possible?
+
+----
+
+1) Yes, pull the twitch page but I like the colours and themes you have suggested for the "cave"
+2) Stay anonymous + IP rate limit
+3) Just VODs
+4) Auto fetch the game icons if they are available or allow the streamer to upload their own
+5) Set hosting for local. So a 24/7 computer with IIS and local storage drives.
+
+Suggestions:
+
+1) Please set DB for MS SQL Server
+2) Please include some dummy data. (For the VOD viewer, point at the twitch vods)
+3) Adjust the login so any user with a twitch account can log in. For the streamer, they can manage the admin stuff. For other users, their reactions are logged against their user which is then reflected in the reporting tab.
+4) Twitch mods should have access to the reporting tab only.
+
+Can you update your plan and give me the draft?
+
+----
+
+1) The videos will be static files served by an IIS site which points to the directory with a vod.x url.
+What's the push for EF Core? Usually I do SQL through the built in System.Data.SqlClient or the new System.Microsoft.SqlClient.
+Please use full abstraction so that unit tests can also be added to the project. I would like a full meaningful, unit test suite that covers all the projects in the solution.
+Please also remember to use async on anything IO bound, database reads, api calls, folder actions etc
+
+2) If the user is signed in through twitch, store their theme preference (light or dark) in the API. On load, pull the theme from their user then fall back on persisted storage.
+
+3) Can you make it so a user can change their reaction to a stream after they have made it or remove their reaction entirely
+
+4) Again, explain why the push for EF
+Make sure your SQL designed like the ERD found here, https://github.com/LegendarySpork9/Hunter-Industries-API/blob/main/Database%20ERD.drawio.
+Please include an ERD like the one above in the project so I can see how the database is designed
+
+5) Definitely add a live now pill
+
+9) Leave off the IIS deploy phase. I will sort that myself at a later date
+
+Things you needed.
+
+1) Can you give me the localhost port so I can get these?
+3) I have a SQL server here, C:\Program Files\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQL
+4) something like D:\QuebecsCave\videos\{game}\{year}\{vodId}.mp4
+
+Please conduct the following changes/information provide and update the plan.
+
+----
+
+3) Let's go discord style with emojis. So, multiple per user per stream
+
+Things you needed.
+
+1) Not sure where I register scopes on the console. I have created the application and the credentials which are in this folder, Credentials.txt
+
+3) Don't run unit tests against a database. Just mock the abstraction layers.
+
+Questions.
+
+Please use Mock and MSTest like my other projects.
+
+Please update your plan for me.
+
+----
+
+The redirect url has already been added to the approved list of urls.
+
+The prod credentials will live in appsettings.json or app.config
+
+Just a quick question, what migration are you doing? You are building with Microsoft.Data.SqlClient so there shouldn't be a migration to do.
+
+Can you clarify this for me and show me the FULL plan.
+
+----
+
+I am happy with the migrations stuff.
+
+With the credentials, the only file on production should be appsettings.json or app.config. For the dev credentials, please read for a appsettings-development.josn or app-development.config.
+
+Can you resolve the streamer id now?
+
+Please show me the full plan after doing these bits.
+
+----
+
+What do you need for the dev-downloader-key-replace-me? Where is that coming from?
+
+----
+
+Let's use this for the dev auth. Can we add auth to all the endpoints please? These endpoints should all use this for the dev auth, "secret".
+
+----
+
+Ok. All looking good.
+
+Final changes.
+
+Can you add a role for developer. If the twitch user is marked as a developer, they have developer access to the site. This basically only gives them access to a developer tab where you can see the audit history pages. The streamer and mods should also have access to the audit history pages.
+
+The audit history pages should:
+
+Show the API audit history, every call made, with what parameters with what response with what changes/deletions were made etc.
+Show the downloader audit history, every thing it's done, api calls etc, twitch download times and responses. Upload responses etc.
+Show the website audit history.
+Show any errors that have occurred (across all areas) and their details (should be filterable), whether they have been addressed, acknowledged, raised to git, fixed, or are non issues.
+
+If you are a stremer, developer or mod, the aduti history page should show on the side bar with cards taking you to the different audit pages.
+
+can you show me the section or revisions of the plan for this?
+
+----
+
+Keep metadata only unless toggeled to capture all (dev yes|prod no)
+For retention keep anything within the last 30 days.
+For error retention, remove it if its older than 30 days and resolved.
+Make sure Git raises are manual. I like the modal for issue url tho.
+
+Yes, please show me the full plan.
+
+----
+
+On the versioning. If I want to change a table or add a new one, do I just change/add a new.sql script to the folder? Can you add a date to the versioning of when the table was updated?
+
+Can you also add a fake streamer user so I can test all the features and also a fake live pill to the dummy data?
+
+----
+
+cool. Final thing. Please make sure all date times are in UTC with stored offsets. This is so the stream can globally set the datimes they would like people to see. This is then displayed to the person so they can see when the stream or video or audit log etc was done in their time instead of BST or UTC. This should be set to UTC for anonymous users and whatever time the twitch user has set on their computer if possible.
+
+----
+
+Please disregard the "Streamer's globally set time" that was meant to be cut out. I like this.
+
+One final final question, are you adding migration scripts as you go through this plan? Why not just initially create the tables with everything we need?
+
+----
+
+alright. Lets do this!
+
+----
+
+good so far. Please do phase 2
+
+----
+
+Looking really good. Please conduct phase 3
+
+----
+
+Looks good. Games on the streams are not correct but I suspect this is with the dummy data not the process. Is that right?
+
+----
+
+Ok. Please proceed with the next step
+
+----
+
+OK. Lets revisit the edge cases in step 7. Please proceed with step 5
+
+----
+
+Nice! Phase 6 please
+
+----
+
+Awesome. Phase 7 please
+
+----
+
+Few questions. What does the "Custom Icon" box actually do in code? What does deleting do? Does it remove from physical storage in the case of videos or just the API? Why does the emoji image url not match the stream icons etc?
+
+----
+
+1) Leave it for now. Hook it up later
+
+2) Leave video deleting for now. I'll have a think
+
+Please start the next step
+
+----
+
+what project do I run in the solution to see the api docs?
+
+----
+
+The api docs page doesn't load, "This page isn’t working
+localhost is currently unable to handle this request."
+
+My test users also can't react to videos.
+
+----
+
+The issue is not that buttons don't do anything, it's that my test user can't interact with them at all. They are locked. Please can you undo your logging additions and look into this?
+
+----
+
+Ok. The streamer, mod and developer can't react to the streams either. The buttons are disabled. Please fix this.
+
+----
+
+Cool. Next step please.
+
+----
+
+Can you continue with the current phase please?
+
+----
+
+OK. Can you add a variety game or "No Game" to sit VODs under. Then, once downloaded, match the VOD against the game captured during the session. Do the same with the thumbnail. Poll, download and attribute the thumbnail when it becomes available. While there is no thumbnail, put the queb borked emoji as the thumbnail. Can you add some test data so I can see this in action on the UI>
+
+----
+
+Yes please, match the tests.
+
+----
+
+Stream 1s thumbnail is an image box because the URL is pointing tohttps://vod.your-domain/retry/2026/2760085764.jpg. Is that correct?
+
+----
+
+Amazing. Please move onto step 10.
+
+----
+
+Cool. Please do step 11.
+
+----
+
+please continue with phase 11
+
+----
+
+Can you just do the check box work?
+
+----
+
+Thank you

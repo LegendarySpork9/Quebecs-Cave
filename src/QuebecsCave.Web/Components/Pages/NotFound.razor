@@ -1,0 +1,28 @@
+@page "/not-found"
+@layout MainLayout
+
+<PageTitle>Not found · Quebec's Cave</PageTitle>
+
+<div class="not-found">
+    <img src="emojis/quebBlind.png" alt="" width="120" height="120" />
+    <h1>Lost in the cave</h1>
+    <p class="muted">
+        The page you were looking for isn't here. Maybe it was a stream that got
+        archived elsewhere, or maybe you took a wrong turn at the stalactites.
+    </p>
+    <a class="btn btn-primary" href="/">Back to home</a>
+</div>
+
+<style>
+    .not-found {
+        text-align: center;
+        max-width: 520px;
+        margin: 4rem auto;
+    }
+    .not-found img {
+        margin-bottom: 1rem;
+        filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+    }
+    .not-found h1 { margin-bottom: 0.75rem; }
+    .not-found p { margin-bottom: 1.5rem; }
+</style>

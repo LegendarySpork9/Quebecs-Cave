@@ -1,0 +1,44 @@
+@using QuebecsCave.Services.Streams
+
+<a class="stream-card" href="@($"/streams/{Card.StreamId}")">
+    <div class="stream-card-thumb">
+        @if (!string.IsNullOrEmpty(Card.ThumbnailUrl))
+        {
+            <img src="@Card.ThumbnailUrl" alt="" loading="lazy" />
+        }
+        else
+        {
+            <div class="stream-card-fallback">
+                <img src="/emojis/quebBorked.png" alt="" title="Thumbnail still pending — Twitch hasn't generated it yet" />
+            </div>
+        }
+        <span class="stream-card-duration">@FormatDuration(Card.DurationSeconds)</span>
+    </div>
+    <div class="stream-card-meta">
+        <h3>@Card.Title</h3>
+        <div class="stream-card-row">
+            @if (!string.IsNullOrEmpty(Card.GameIconUrl))
+            {
+                <img class="stream-card-game-icon" src="@Card.GameIconUrl" alt="" />
+            }
+            <span class="muted">@Card.GameName</span>
+            <span class="faint">·</span>
+            <time class="faint" datetime="@Card.StreamedAt.ToString("o")">
+                @Card.StreamedAt.ToLocalTime().ToString("d MMM yyyy")
+            </time>
+        </div>
+    </div>
+</a>
+
+@code {
+    [Parameter, EditorRequired] public StreamCard Card { get; set; } = default!;
+
+    private static string FormatDuration(int seconds)
+    {
+        if (seconds <= 0) return "—";
+        var ts = TimeSpan.FromSeconds(seconds);
+        return ts.TotalHours >= 1
+            ? $"{(int)ts.TotalHours}h {ts.Minutes}m"
+            : $"{ts.Minutes}m";
+    }
+}

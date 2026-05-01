@@ -1,0 +1,45 @@
+@inherits LayoutComponentBase
+
+<div class="page">
+    <header class="topbar">
+        <a class="brand" href="/">
+            <img src="streamer-avatar.png" alt="" width="40" height="40" />
+            <span class="brand-name">Quebec's Cave</span>
+        </a>
+
+        <LivePill />
+
+        <span class="spacer"></span>
+
+        <ThemeToggle />
+
+        <a class="btn btn-ghost twitch-link" href="https://twitch.tv/longlivequebec" target="_blank" rel="noopener">
+            Watch on Twitch
+        </a>
+
+        <UserMenu />
+    </header>
+
+    <div class="shell">
+        <aside class="sidebar">
+            <NavMenu />
+        </aside>
+
+        <main class="content">
+            @Body
+        </main>
+    </div>
+
+    <footer class="cave-footer">
+        <img src="emojis/quebCozy.png" alt="" width="22" height="22" />
+        <span>Made in the cave.</span>
+        <span class="faint">·</span>
+        <span class="faint">v0.6 — through Phase 6 (live pill)</span>
+    </footer>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

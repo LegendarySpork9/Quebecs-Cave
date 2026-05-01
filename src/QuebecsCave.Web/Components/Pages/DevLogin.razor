@@ -1,0 +1,61 @@
+@page "/dev/login"
+@using Microsoft.Extensions.Options
+@using QuebecsCave.Services.Identity
+@inject IHostEnvironment Env
+@inject IOptions<DevAuthOptions> DevAuth
+
+<PageTitle>Dev login · Quebec's Cave</PageTitle>
+
+@if (!Env.IsDevelopment() || !DevAuth.Value.Enabled)
+{
+    <div class="not-here">
+        <img src="/emojis/quebStop.png" alt="" />
+        <h1>Not available</h1>
+        <p class="muted">
+            Dev login is only available in <code>Development</code> with
+            <code>DevAuth:Enabled=true</code>.
+        </p>
+        <a href="/" class="btn btn-primary">Back to home</a>
+    </div>
+}
+else
+{
+    <header class="dev-head">
+        <h1>Dev login</h1>
+        <p class="muted">
+            Skip the Twitch OAuth round-trip. Click a role to sign in as a seeded
+            test user. Disabled in production.
+        </p>
+    </header>
+
+    <div class="dev-grid">
+        @foreach (var p in DevAuthProfiles.All)
+        {
+            <a class="card dev-tile" href="@($"/dev/auth/signin/{p.Key}")">
+                <div class="dev-tile-head">
+                    @if (!string.IsNullOrEmpty(p.AvatarUrl))
+                    {
+                        <img class="dev-tile-avatar" src="@p.AvatarUrl" alt="" />
+                    }
+                    else
+                    {
+                        <div class="dev-tile-avatar dev-tile-avatar-placeholder">@(p.DisplayName[0])</div>
+                    }
+                    <div>
+                        <h3>@p.DisplayName</h3>
+                        <span class="faint small">@p.TwitchLogin · @p.TwitchUserId</span>
+                    </div>
+                </div>
+                <p class="muted small">@p.Tagline</p>
+                <span class="dev-tile-cta">@p.Label →</span>
+            </a>
+        }
+    </div>
+
+    <footer class="dev-foot">
+        <span class="faint small">
+            DevAuth is gated by <code>IsDevelopment()</code> AND <code>DevAuth:Enabled=true</code>.
+            In prod this page returns 404 and the endpoint refuses to issue a cookie.
+        </span>
+    </footer>
+}

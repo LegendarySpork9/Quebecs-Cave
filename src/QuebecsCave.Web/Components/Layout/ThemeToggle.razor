@@ -1,0 +1,9 @@
+@* No Blazor state — JS handles current theme + icon. Click calls quebTheme.cycle(). *@
+<button id="theme-toggle"
+        type="button"
+        class="btn-icon"
+        onclick="quebTheme.cycle()"
+        aria-label="Toggle theme"
+        title="Toggle theme">
+    <span id="theme-toggle-icon">☾</span>
+</button>

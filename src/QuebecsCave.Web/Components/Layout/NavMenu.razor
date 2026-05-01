@@ -1,0 +1,78 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using QuebecsCave.Web.Auth
+
+<nav class="nav-list">
+    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+        <span class="nav-icon">🏠</span>
+        <span>Home</span>
+    </NavLink>
+
+    <NavLink class="nav-link" href="streams">
+        <img class="nav-emoji" src="emojis/quebDig.png" alt="" />
+        <span>Streams</span>
+    </NavLink>
+
+    <NavLink class="nav-link" href="games">
+        <img class="nav-emoji" src="emojis/quebKing.png" alt="" />
+        <span>Games</span>
+    </NavLink>
+
+    <AuthorizeView Policy="@AuthorizationPolicies.AuditAccess">
+        <Authorized>
+            <div class="nav-section">Audit history</div>
+            <NavLink class="nav-link" href="admin/audit">
+                <img class="nav-emoji" src="emojis/quebRaid.png" alt="" />
+                <span>Overview</span>
+            </NavLink>
+            <NavLink class="nav-link" href="admin/audit/api">
+                <span class="nav-icon">🌐</span><span>API calls</span>
+            </NavLink>
+            <NavLink class="nav-link" href="admin/audit/downloader">
+                <span class="nav-icon">📥</span><span>Downloader</span>
+            </NavLink>
+            <NavLink class="nav-link" href="admin/audit/website">
+                <span class="nav-icon">🖥️</span><span>Website</span>
+            </NavLink>
+            <NavLink class="nav-link" href="admin/audit/errors">
+                <span class="nav-icon">⚠️</span><span>Errors</span>
+            </NavLink>
+            <NavLink class="nav-link" href="admin/audit/schema">
+                <span class="nav-icon">🧱</span><span>Schema</span>
+            </NavLink>
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Policy="@AuthorizationPolicies.ReportsAccess">
+        <Authorized>
+            <div class="nav-section">Reports</div>
+            <NavLink class="nav-link" href="admin/reports">
+                <img class="nav-emoji" src="emojis/quebGood.png" alt="" />
+                <span>Analytics</span>
+            </NavLink>
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Policy="@AuthorizationPolicies.Streamer">
+        <Authorized>
+            <div class="nav-section">Admin</div>
+            <NavLink class="nav-link" href="admin" Match="NavLinkMatch.All">
+                <span class="nav-icon">⚙️</span><span>Dashboard</span>
+            </NavLink>
+            <NavLink class="nav-link" href="admin/streams">
+                <img class="nav-emoji" src="emojis/quebDig.png" alt="" />
+                <span>Streams</span>
+            </NavLink>
+            <NavLink class="nav-link" href="admin/games">
+                <img class="nav-emoji" src="emojis/quebKing.png" alt="" />
+                <span>Games</span>
+            </NavLink>
+            <NavLink class="nav-link" href="admin/emojis">
+                <img class="nav-emoji" src="emojis/quebLove.png" alt="" />
+                <span>Emojis</span>
+            </NavLink>
+            <NavLink class="nav-link" href="admin/developers">
+                <span class="nav-icon">👤</span><span>Developers</span>
+            </NavLink>
+        </Authorized>
+    </AuthorizeView>
+</nav>

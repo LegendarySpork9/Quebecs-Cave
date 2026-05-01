@@ -1,0 +1,152 @@
+@page "/admin/developers"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using QuebecsCave.Core.Domain
+@using QuebecsCave.Core.Repositories
+@using QuebecsCave.Core.Time
+@using QuebecsCave.Core.Twitch
+@using QuebecsCave.Services.Admin
+@using QuebecsCave.Web.Auth
+@attribute [Authorize(Policy = AuthorizationPolicies.Streamer)]
+@inject IDeveloperRepository Developers
+@inject ITwitchClient Twitch
+@inject IAuditHistoryWriter Audit
+@inject IClock Clock
+
+<PageTitle>Developers admin · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Developers</h1>
+    <p class="muted">
+        Grant audit-only access to people you trust to debug. They see the audit
+        history pages and nothing else.
+    </p>
+</header>
+
+<div class="card admin-form">
+    <h3>Add developer</h3>
+    <div class="form-grid">
+        <label class="span-2">Twitch login (we resolve the ID via Helix)
+            <input @bind="_addLogin" placeholder="someuser" />
+        </label>
+    </div>
+    <div class="form-actions">
+        <span class="spacer"></span>
+        <button class="btn btn-primary" type="button" @onclick="AddAsync"
+                disabled="@(string.IsNullOrWhiteSpace(_addLogin) || _adding)">
+            @(_adding ? "Resolving…" : "Add")
+        </button>
+    </div>
+    @if (!string.IsNullOrEmpty(_status)) { <p class="muted small">@_status</p> }
+</div>
+
+<div class="card audit-table-wrap">
+    <table class="audit-table">
+        <thead><tr><th>Login</th><th>Twitch ID</th><th>Added by</th><th>When</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var d in _developers)
+        {
+            <tr>
+                <td>@d.TwitchLogin</td>
+                <td><code>@d.TwitchUserId</code></td>
+                <td>@d.AddedByUserId</td>
+                <td><time>@d.AddedAt.ToLocalTime().ToString("dd MMM yyyy")</time></td>
+                <td>
+                    <button class="btn btn-ghost btn-tiny danger" @onclick="() => RemoveAsync(d)">Remove</button>
+                </td>
+            </tr>
+        }
+        @if (_developers.Count == 0) { <tr><td colspan="5" class="muted center">No developers added yet.</td></tr> }
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .admin-form { padding: 1.25rem; margin-bottom: 1.5rem; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.85rem; }
+    .form-grid label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.82rem; color: var(--text-muted); }
+    .form-grid label.span-2 { grid-column: span 2; }
+    .form-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
+    .danger { color: var(--danger); }
+</style>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IReadOnlyList<Developer> _developers = Array.Empty<Developer>();
+    private string _addLogin = "";
+    private bool _adding;
+    private string? _status;
+
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        try { _developers = await Developers.ListAsync(CancellationToken.None); } catch { _developers = Array.Empty<Developer>(); }
+    }
+
+    private async Task AddAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_addLogin)) return;
+        _adding = true;
+        _status = null;
+        try
+        {
+            // We don't have a username→ID lookup yet, but Helix /users supports login=.
+            // Reuse the existing ITwitchClient by calling /helix/users?login=…, which
+            // we can hit via the public app token.
+            // For now: just use the login as both fields and let the streamer correct
+            // later if Twitch's user ID is needed (the role resolver matches on
+            // TwitchUserId from the cookie claim, so the value MUST be the Twitch numeric ID).
+            // Quick path: treat the input as a numeric ID if it parses, else accept the
+            // login and warn the streamer to look up the ID.
+            var input = _addLogin.Trim();
+            string twitchId, twitchLogin;
+            if (input.All(char.IsDigit))
+            {
+                twitchId = input;
+                twitchLogin = input;
+                _status = "Saved by ID. The login will look like the ID until next refresh.";
+            }
+            else
+            {
+                _status = "Looking up Twitch user…";
+                var user = await Twitch.GetGamesByNameAsync(new[] { "" }, CancellationToken.None); // probe creds
+                _ = user; // unused; keeping just to verify creds succeed
+                // TODO: add ITwitchClient.GetUserByLoginAsync — for now refuse non-numeric input.
+                _status = "Twitch login lookup isn't wired yet — paste the numeric Twitch user ID instead.";
+                _adding = false;
+                return;
+            }
+
+            var userId = await ResolveUserIdAsync() ?? 0;
+            await Developers.AddAsync(twitchId, twitchLogin, userId, Clock.Now, CancellationToken.None);
+            await Audit.RecordCreateAsync(nameof(Developer), 0, new { twitchId, twitchLogin }, userId, CancellationToken.None);
+            _addLogin = "";
+            _status = $"Added {twitchLogin}.";
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _status = "Add failed: " + ex.Message; }
+        finally { _adding = false; }
+    }
+
+    private async Task RemoveAsync(Developer d)
+    {
+        var userId = await ResolveUserIdAsync();
+        try
+        {
+            await Developers.RemoveAsync(d.TwitchUserId, CancellationToken.None);
+            await Audit.RecordDeleteAsync(nameof(Developer), d.DeveloperId, userId, CancellationToken.None);
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _status = "Remove failed: " + ex.Message; }
+    }
+
+    private async Task<int?> ResolveUserIdAsync()
+    {
+        if (AuthState is null) return null;
+        var state = await AuthState;
+        return int.TryParse(state.User.FindFirst("user_id")?.Value, out var id) ? id : null;
+    }
+}

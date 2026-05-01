@@ -1,0 +1,48 @@
+.page-head { margin-bottom: 1.5rem; }
+
+.kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.kpi {
+    text-align: center;
+    padding: 1.25rem;
+}
+
+.kpi-value {
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 0.35rem;
+}
+
+.kpi-label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+
+.kpi.kpi-warn .kpi-value { color: var(--warn); }
+.kpi.kpi-warn { border-color: var(--warn); }
+
+.admin-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.admin-card {
+    display: block;
+    text-decoration: none;
+    color: var(--text);
+    padding: 1.25rem;
+}
+.admin-card h3 { font-size: 1.05rem; margin-bottom: 0.4rem; }
+.admin-card p { margin: 0; }

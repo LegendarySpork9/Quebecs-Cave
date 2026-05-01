@@ -1,0 +1,61 @@
+@page "/games"
+@using QuebecsCave.Core.Domain
+@using QuebecsCave.Services.Games
+@inject IGameService GameService
+
+<PageTitle>Games · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Games</h1>
+    <p class="muted">
+        Pick a game to see every stream Quebec played in it.
+    </p>
+</header>
+
+@if (_games.Count == 0)
+{
+    <div class="placeholder-msg">
+        <img src="emojis/quebStare.png" alt="" width="48" height="48" />
+        <div>
+            <strong>No games yet.</strong>
+            <p class="muted">They'll show up here once seeded.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="game-grid">
+        @foreach (var g in _games)
+        {
+            <a class="card game-card" href="@($"/games/{g.Slug}")">
+                <div class="game-icon">
+                    @if (!string.IsNullOrEmpty(g.IconUrl))
+                    {
+                        <img src="@g.IconUrl" alt="" />
+                    }
+                    else
+                    {
+                        <img src="/emojis/quebKing.png" alt="" />
+                    }
+                </div>
+                <h3>@g.Name</h3>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<Game> _games = Array.Empty<Game>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _games = await GameService.ListAsync(CancellationToken.None);
+        }
+        catch
+        {
+            _games = Array.Empty<Game>();
+        }
+    }
+}

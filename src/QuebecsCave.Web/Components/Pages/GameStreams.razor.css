@@ -1,0 +1,41 @@
+.game-head {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+}
+
+.game-head-icon {
+    width: 96px;
+    height: 128px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--surface-2);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.game-head-icon img { width: 100%; height: 100%; object-fit: cover; }
+
+.game-head h1 { margin: 0 0 0.35rem; }
+.game-head p { margin: 0; }
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.not-here {
+    text-align: center;
+    margin: 4rem auto;
+    max-width: 460px;
+}
+.not-here img { width: 96px; height: 96px; margin-bottom: 1rem; }
+.not-here h1 { margin-bottom: 0.5rem; }
+.not-here p { margin-bottom: 1.25rem; }

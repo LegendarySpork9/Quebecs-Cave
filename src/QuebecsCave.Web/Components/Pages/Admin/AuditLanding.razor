@@ -1,0 +1,78 @@
+@page "/admin/audit"
+@using Microsoft.AspNetCore.Authorization
+@using QuebecsCave.Core.Audit
+@using QuebecsCave.Web.Auth
+@attribute [Authorize(Policy = AuthorizationPolicies.AuditAccess)]
+@inject IApiCallLogQueryRepository ApiLog
+@inject IDownloaderEventQueryRepository DownloaderLog
+@inject IWebsiteEventQueryRepository WebsiteLog
+@inject IErrorLogQueryRepository ErrorLog
+@inject ISchemaVersionQueryRepository SchemaLog
+@inject QuebecsCave.Core.Time.IClock Clock
+
+<PageTitle>Audit · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Audit history</h1>
+    <p class="muted">Everything the app, the downloader, and the website have been up to.</p>
+</header>
+
+<div class="audit-grid">
+    <a class="card audit-card" href="admin/audit/api">
+        <div class="audit-card-head">
+            <span class="audit-icon">🌐</span>
+            <h3>API calls</h3>
+        </div>
+        <p class="muted small">@_apiCalls24h in the last 24h</p>
+    </a>
+
+    <a class="card audit-card" href="admin/audit/downloader">
+        <div class="audit-card-head">
+            <span class="audit-icon">📥</span>
+            <h3>Downloader</h3>
+        </div>
+        <p class="muted small">@_downloader24h events in the last 24h</p>
+    </a>
+
+    <a class="card audit-card" href="admin/audit/website">
+        <div class="audit-card-head">
+            <span class="audit-icon">🖥️</span>
+            <h3>Website</h3>
+        </div>
+        <p class="muted small">@_website24h events in the last 24h</p>
+    </a>
+
+    <a class="card audit-card @(_openErrors > 0 ? "audit-card-warn" : "")" href="admin/audit/errors">
+        <div class="audit-card-head">
+            <span class="audit-icon">⚠️</span>
+            <h3>Errors</h3>
+        </div>
+        <p class="muted small">@_openErrors open</p>
+    </a>
+
+    <a class="card audit-card" href="admin/audit/schema">
+        <div class="audit-card-head">
+            <span class="audit-icon">🧱</span>
+            <h3>Schema</h3>
+        </div>
+        <p class="muted small">@_schemaCount migration(s) applied</p>
+    </a>
+</div>
+
+@code {
+    private int _apiCalls24h, _downloader24h, _website24h, _openErrors, _schemaCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var since = Clock.Now.AddDays(-1);
+        try
+        {
+            _apiCalls24h   = await ApiLog.CountSinceAsync(since, CancellationToken.None);
+            _downloader24h = await DownloaderLog.CountSinceAsync(since, CancellationToken.None);
+            _website24h    = await WebsiteLog.CountSinceAsync(since, CancellationToken.None);
+            _openErrors    = await ErrorLog.CountOpenAsync(CancellationToken.None);
+            _schemaCount   = (await SchemaLog.ListAsync(CancellationToken.None)).Count;
+        }
+        catch { }
+    }
+}

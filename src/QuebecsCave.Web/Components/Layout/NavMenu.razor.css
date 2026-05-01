@@ -1,0 +1,72 @@
+.nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+::deep .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.55rem 0.85rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    text-decoration: none;
+    font-weight: 500;
+    transition: background var(--transition-fast), color var(--transition-fast);
+    position: relative;
+}
+
+::deep .nav-link:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+::deep .nav-link.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+::deep .nav-link.active::before {
+    content: "";
+    position: absolute;
+    left: -3px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 1.2em;
+    background: var(--accent);
+    border-radius: 2px;
+}
+
+::deep .nav-link-disabled {
+    color: var(--text-faint);
+    cursor: not-allowed;
+}
+::deep .nav-link-disabled:hover {
+    background: transparent;
+    color: var(--text-faint);
+}
+
+::deep .nav-icon {
+    width: 22px;
+    text-align: center;
+    font-size: 1.05rem;
+}
+
+::deep .nav-emoji {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+.nav-section {
+    margin-top: 1.25rem;
+    padding: 0 0.85rem 0.25rem;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}

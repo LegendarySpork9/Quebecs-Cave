@@ -1,0 +1,94 @@
+@page "/games/{Slug}"
+@using QuebecsCave.Core.Domain
+@using QuebecsCave.Core.Repositories
+@using QuebecsCave.Services.Games
+@using QuebecsCave.Services.Streams
+@using QuebecsCave.Web.Components.Shared
+@inject IGameService GameService
+@inject IStreamService StreamService
+
+<PageTitle>@(_game?.Name ?? "Game") · Quebec's Cave</PageTitle>
+
+@if (_loading)
+{
+    <p class="muted">Loading…</p>
+}
+else if (_game is null)
+{
+    <div class="not-here">
+        <img src="/emojis/quebStare.png" alt="" />
+        <h1>Game not found</h1>
+        <p class="muted">No game matched <code>@Slug</code>.</p>
+        <a href="/games" class="btn btn-primary">Back to games</a>
+    </div>
+}
+else
+{
+    <header class="game-head">
+        <div class="game-head-icon">
+            @if (!string.IsNullOrEmpty(_game.IconUrl))
+            {
+                <img src="@_game.IconUrl" alt="" />
+            }
+            else
+            {
+                <img src="/emojis/quebKing.png" alt="" />
+            }
+        </div>
+        <div>
+            <h1>@_game.Name</h1>
+            <p class="muted">
+                @_streams.Count stream@(_streams.Count == 1 ? "" : "s") archived.
+                <a href="/games" class="muted">All games</a>
+            </p>
+        </div>
+    </header>
+
+    @if (_streams.Count == 0)
+    {
+        <p class="muted">No streams archived for this game yet.</p>
+    }
+    else
+    {
+        <div class="card-grid">
+            @foreach (var card in _streams)
+            {
+                <StreamCardView Card="card" />
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private bool _loading = true;
+    private Game? _game;
+    private IReadOnlyList<StreamCard> _streams = Array.Empty<StreamCard>();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        try
+        {
+            _game = await GameService.GetBySlugAsync(Slug, CancellationToken.None);
+            if (_game is null)
+            {
+                _streams = Array.Empty<StreamCard>();
+            }
+            else
+            {
+                var page = await StreamService.SearchAsync(
+                    new StreamFilter(_game.GameId, null, null, null, 0, 100),
+                    CancellationToken.None);
+                _streams = page.Items;
+            }
+        }
+        catch
+        {
+            _game = null;
+            _streams = Array.Empty<StreamCard>();
+        }
+        _loading = false;
+    }
+}

@@ -1,0 +1,30 @@
+.page-head { margin-bottom: 1.5rem; }
+
+.audit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.audit-card {
+    text-decoration: none;
+    color: var(--text);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.audit-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.audit-card-head h3 { margin: 0; font-size: 1rem; }
+.audit-icon { font-size: 1.4rem; }
+
+.audit-card-warn { border-color: var(--warn); }
+.audit-card-warn h3 { color: var(--warn); }
+
+.small { font-size: 0.85rem; }

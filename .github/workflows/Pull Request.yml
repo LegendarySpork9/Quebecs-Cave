@@ -1,0 +1,42 @@
+name: CI on Pull Request
+
+on:
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:        
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download and start Papercut SMTP
+      run: |
+        Invoke-WebRequest https://github.com/ChangemakerStudios/Papercut-SMTP/releases/latest/download/PapercutSMTP-win-x64-stable-Portable.zip -OutFile PapercutSMTP.zip
+        Expand-Archive PapercutSMTP.zip -DestinationPath Papercut
+        $exePath = Get-ChildItem -Recurse -Filter "Papercut SMTP.exe" -Path ".\Papercut" | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+        Write-Host "Found Papercut at $exePath"
+        Start-Process -FilePath $exePath -ArgumentList "--AllowInsecure" -WindowStyle Hidden
+        Start-Sleep -Seconds 5
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Run tests
+      run: dotnet test --no-restore --verbosity normal
+
+    - name: Stop Papercut SMTP
+      if: always()
+      run: |
+        Get-Process "Papercut SMTP" -ErrorAction SilentlyContinue | Stop-Process -Force

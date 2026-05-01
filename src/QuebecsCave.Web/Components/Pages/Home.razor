@@ -1,0 +1,63 @@
+@page "/"
+@using QuebecsCave.Services.Streams
+@using QuebecsCave.Web.Components.Shared
+@inject IStreamService StreamService
+
+<PageTitle>Quebec's Cave</PageTitle>
+
+<section class="hero">
+    <div class="hero-text">
+        <h1>Welcome to <span class="hero-accent">Quebec's Cave</span></h1>
+        <p class="hero-tagline">
+            The unofficial archive of every stream LongLiveQuebec has ever cooked up.
+            Browse the back catalogue, filter by game, and react to your favourite moments.
+        </p>
+        <div class="hero-actions">
+            <a class="btn btn-primary" href="streams">
+                <img src="emojis/quebDig.png" alt="" width="22" height="22" />
+                Browse streams
+            </a>
+            <a class="btn btn-ghost" href="https://twitch.tv/longlivequebec" target="_blank" rel="noopener">
+                Watch live on Twitch
+            </a>
+        </div>
+    </div>
+    <img class="hero-mascot" src="emojis/quebKing.png" alt="" />
+</section>
+
+<section class="recent">
+    <header class="recent-header">
+        <h2>Recent streams</h2>
+        <a href="streams" class="muted">View all →</a>
+    </header>
+
+    @if (_recent.Count == 0)
+    {
+        <p class="muted">No streams yet — they'll appear here once seeded.</p>
+    }
+    else
+    {
+        <div class="card-grid">
+            @foreach (var card in _recent)
+            {
+                <StreamCardView Card="card" />
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<StreamCard> _recent = Array.Empty<StreamCard>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _recent = await StreamService.GetRecentAsync(6, CancellationToken.None);
+        }
+        catch
+        {
+            _recent = Array.Empty<StreamCard>();
+        }
+    }
+}

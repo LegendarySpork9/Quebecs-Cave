@@ -1,0 +1,179 @@
+.viewer { max-width: 1100px; margin: 0 auto; }
+
+.player-wrap {
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+    box-shadow: var(--shadow-md);
+}
+.player {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border: 0;
+    background: #000;
+}
+
+.viewer-head h1 {
+    font-size: 1.7rem;
+    margin-bottom: 0.5rem;
+}
+
+.viewer-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+
+.game-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.game-chip:hover { border-color: var(--accent); color: var(--accent); }
+.game-chip img { width: 18px; height: 24px; border-radius: 3px; object-fit: cover; }
+
+.viewer-desc {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    padding: 1rem 1.15rem;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    white-space: pre-wrap;
+}
+
+.reactions {
+    margin-bottom: 2rem;
+}
+
+.reactions-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.65rem;
+}
+
+.reactions-head h3 { font-size: 1rem; margin: 0; }
+
+.reaction-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.reaction {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.7rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.reaction:disabled { cursor: not-allowed; opacity: 0.7; }
+.reaction:not(:disabled):hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+.reaction img { display: block; }
+.reaction-count {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 1ch;
+    text-align: center;
+}
+
+.reaction.reaction-lit {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.reaction.reaction-lit .reaction-count {
+    color: var(--accent);
+    font-weight: 700;
+}
+.reaction-error {
+    color: var(--danger);
+    background: rgba(217, 106, 94, 0.08);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 0.75rem;
+    margin: 0 0 0.65rem;
+    font-size: 0.9rem;
+}
+
+.related h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.85rem;
+}
+
+.related-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.85rem;
+}
+
+.related-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+.related-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.related-card img { aspect-ratio: 16 / 9; width: 100%; object-fit: cover; }
+.related-card h4 {
+    font-size: 0.95rem;
+    margin: 0.5rem 0.7rem 0;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.related-card .small { display: block; padding: 0.25rem 0.7rem 0.7rem; }
+
+.related-fallback {
+    aspect-ratio: 16 / 9;
+    background: var(--surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.related-fallback img { width: 56px; height: 56px; aspect-ratio: 1 / 1; object-fit: contain; }
+
+.not-here {
+    text-align: center;
+    margin: 4rem auto;
+    max-width: 460px;
+}
+.not-here img {
+    width: 96px; height: 96px;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+}
+.not-here h1 { margin-bottom: 0.5rem; }
+.not-here p { margin-bottom: 1.25rem; }
+
+.small { font-size: 0.85rem; }

@@ -1,0 +1,185 @@
+@page "/admin/emojis"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using QuebecsCave.Core.Domain
+@using QuebecsCave.Core.Repositories
+@using QuebecsCave.Services.Admin
+@using QuebecsCave.Web.Auth
+@attribute [Authorize(Policy = AuthorizationPolicies.Streamer)]
+@inject IEmojiRepository Emojis
+@inject IAuditHistoryWriter Audit
+
+<PageTitle>Emojis admin · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Emojis</h1>
+    <p class="muted">
+        Reaction emojis. Add a URL or path under <code>/emojis/</code>, toggle active/inactive,
+        reorder via SortOrder.
+    </p>
+    <button class="btn btn-primary" @onclick="StartCreate">+ Add emoji</button>
+</header>
+
+@if (_form is not null)
+{
+    <div class="card admin-form">
+        <h3>@(_form.EmojiId == 0 ? "New emoji" : "Edit emoji")</h3>
+        <div class="form-grid">
+            <label>Code (lowercase, no spaces)<input @bind="_form.Code" placeholder="quebHype" /></label>
+            <label>Display name<input @bind="_form.Name" placeholder="Queb Hype" /></label>
+            <label class="span-2">Image URL
+                <input @bind="_form.ImageUrl" placeholder="/emojis/quebHype.png or https://…" />
+            </label>
+            <label>Sort order<input type="number" @bind="_form.SortOrder" /></label>
+            <label class="checkbox"><input type="checkbox" @bind="_form.IsActive" /> Active</label>
+        </div>
+        <div class="form-actions">
+            <span class="spacer"></span>
+            <button class="btn btn-ghost" type="button" @onclick="CancelForm">Cancel</button>
+            <button class="btn btn-primary" type="button" @onclick="SaveAsync"
+                    disabled="@(string.IsNullOrWhiteSpace(_form.Code) || string.IsNullOrWhiteSpace(_form.ImageUrl))">
+                Save
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(_status)) { <p class="muted small">@_status</p> }
+    </div>
+}
+
+<div class="card audit-table-wrap">
+    <table class="audit-table">
+        <thead><tr><th></th><th>Code</th><th>Name</th><th>Order</th><th>Active</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var e in _emojis)
+        {
+            <tr class="@(e.IsActive ? "" : "row-resolved")">
+                <td><img src="@e.ImageUrl" alt="" class="emoji-thumb" /></td>
+                <td><code>@e.Code</code></td>
+                <td>@e.Name</td>
+                <td>@e.SortOrder</td>
+                <td>
+                    <button class="btn btn-ghost btn-tiny" @onclick="() => ToggleAsync(e)">
+                        @(e.IsActive ? "Deactivate" : "Activate")
+                    </button>
+                </td>
+                <td><button class="btn btn-ghost btn-tiny" @onclick="() => StartEdit(e)">Edit</button></td>
+            </tr>
+        }
+        @if (_emojis.Count == 0) { <tr><td colspan="6" class="muted center">No emojis seeded.</td></tr> }
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .admin-form { padding: 1.25rem; margin-bottom: 1.5rem; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.85rem; }
+    .form-grid label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.82rem; color: var(--text-muted); }
+    .form-grid label.span-2 { grid-column: span 2; }
+    .form-grid label.checkbox { flex-direction: row; align-items: center; }
+    .form-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
+    .emoji-thumb { width: 28px; height: 28px; }
+</style>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IReadOnlyList<Emoji> _emojis = Array.Empty<Emoji>();
+    private Form? _form;
+    private string? _status;
+
+    private sealed class Form
+    {
+        public int EmojiId { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string ImageUrl { get; set; } = "";
+        public bool IsActive { get; set; } = true;
+        public int SortOrder { get; set; }
+    }
+
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        try { _emojis = await Emojis.ListAllAsync(CancellationToken.None); } catch { _emojis = Array.Empty<Emoji>(); }
+    }
+
+    private void StartCreate()
+    {
+        _form = new Form { SortOrder = (_emojis.LastOrDefault()?.SortOrder ?? -1) + 1, IsActive = true };
+        _status = null;
+    }
+    private void StartEdit(Emoji e)
+    {
+        _form = new Form { EmojiId = e.EmojiId, Code = e.Code, Name = e.Name, ImageUrl = e.ImageUrl, IsActive = e.IsActive, SortOrder = e.SortOrder };
+        _status = null;
+    }
+    private void CancelForm() { _form = null; _status = null; }
+
+    private async Task SaveAsync()
+    {
+        if (_form is null) return;
+        var userId = await ResolveUserIdAsync();
+        try
+        {
+            if (_form.EmojiId == 0)
+            {
+                var entity = new Emoji
+                {
+                    Code = _form.Code.Trim(),
+                    Name = string.IsNullOrWhiteSpace(_form.Name) ? _form.Code.Trim() : _form.Name.Trim(),
+                    ImageUrl = _form.ImageUrl.Trim(),
+                    IsActive = _form.IsActive,
+                    SortOrder = _form.SortOrder,
+                };
+                var id = await Emojis.CreateAsync(entity, CancellationToken.None);
+                await Audit.RecordCreateAsync(nameof(Emoji), id, entity, userId, CancellationToken.None);
+            }
+            else
+            {
+                var before = _emojis.FirstOrDefault(x => x.EmojiId == _form.EmojiId);
+                var updated = new Emoji
+                {
+                    EmojiId = _form.EmojiId,
+                    Code = _form.Code.Trim(),
+                    Name = string.IsNullOrWhiteSpace(_form.Name) ? _form.Code.Trim() : _form.Name.Trim(),
+                    ImageUrl = _form.ImageUrl.Trim(),
+                    IsActive = _form.IsActive,
+                    SortOrder = _form.SortOrder,
+                };
+                await Emojis.UpdateAsync(updated, CancellationToken.None);
+                if (before is not null)
+                {
+                    await Audit.RecordUpdateAsync(nameof(Emoji), updated.EmojiId, before, updated, userId, CancellationToken.None);
+                }
+            }
+            _form = null;
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _status = "Save failed: " + ex.Message; }
+    }
+
+    private async Task ToggleAsync(Emoji e)
+    {
+        var userId = await ResolveUserIdAsync();
+        var updated = new Emoji
+        {
+            EmojiId = e.EmojiId, Code = e.Code, Name = e.Name, ImageUrl = e.ImageUrl,
+            IsActive = !e.IsActive, SortOrder = e.SortOrder,
+        };
+        try
+        {
+            await Emojis.UpdateAsync(updated, CancellationToken.None);
+            await Audit.RecordUpdateAsync(nameof(Emoji), e.EmojiId, e, updated, userId, CancellationToken.None);
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _status = "Toggle failed: " + ex.Message; }
+    }
+
+    private async Task<int?> ResolveUserIdAsync()
+    {
+        if (AuthState is null) return null;
+        var state = await AuthState;
+        return int.TryParse(state.User.FindFirst("user_id")?.Value, out var id) ? id : null;
+    }
+}

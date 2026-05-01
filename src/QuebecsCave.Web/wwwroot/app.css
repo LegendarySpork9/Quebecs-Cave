@@ -1,0 +1,251 @@
+/* ----------------------------------------------------------------------
+   Quebec's Cave — global styles + theme variables
+   ---------------------------------------------------------------------- */
+
+:root {
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.15);
+    --shadow-md: 0 4px 14px rgba(0,0,0,0.25);
+    --shadow-lg: 0 10px 32px rgba(0,0,0,0.35);
+    --transition-fast: 120ms ease;
+    --transition-med: 240ms ease;
+    --font-display: "Fredoka", "Bricolage Grotesque", system-ui, -apple-system, sans-serif;
+    --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Cave Dark — default */
+:root,
+:root[data-theme="dark"] {
+    --bg:               #1a1410;
+    --bg-elevated:      #221a14;
+    --surface:          #2d2218;
+    --surface-2:        #3a2c20;
+    --border:           #4a3826;
+    --border-soft:      #322519;
+    --accent:           #d49a3a;
+    --accent-hover:     #e6ad4d;
+    --accent-soft:      rgba(212, 154, 58, 0.16);
+    --highlight:        #e8c896;
+    --text:             #f4e9d8;
+    --text-muted:       #b8a78a;
+    --text-faint:       #7a6a55;
+    --stone:            #6b5d4f;
+    --success:          #6fbf73;
+    --danger:           #d96a5e;
+    --warn:             #d9b35e;
+    --live:             #e85f5f;
+    --live-glow:        rgba(232, 95, 95, 0.45);
+}
+
+:root[data-theme="light"] {
+    --bg:               #f7efe1;
+    --bg-elevated:      #fdf6e8;
+    --surface:          #ffffff;
+    --surface-2:        #fbf1dc;
+    --border:           #d6c4a0;
+    --border-soft:      #e8dcc1;
+    --accent:           #a06028;
+    --accent-hover:     #b46f33;
+    --accent-soft:      rgba(160, 96, 40, 0.12);
+    --highlight:        #d8a35d;
+    --text:             #3d2818;
+    --text-muted:       #6b5b48;
+    --text-faint:       #9c8a73;
+    --stone:            #8b7866;
+    --success:          #3a8a3f;
+    --danger:           #b13a2e;
+    --warn:             #b07a25;
+    --live:             #c93b3b;
+    --live-glow:        rgba(201, 59, 59, 0.30);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background var(--transition-med), color var(--transition-med);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 0.5rem 0;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+h1 { font-size: 2.4rem; }
+h2 { font-size: 1.7rem; }
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+
+p { margin: 0 0 1rem 0; }
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+a:hover { color: var(--accent-hover); }
+
+button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+/* ---- Buttons ---------------------------------------------------------- */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1.05rem;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #1a1410;
+    border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border);
+}
+.btn-ghost:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+.btn-icon {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+.btn-icon:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+
+/* ---- Cards / surfaces ------------------------------------------------- */
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--accent); }
+
+/* ---- Live pill (used in top bar; static placeholder until Phase 6) ---- */
+
+.live-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(232, 95, 95, 0.12);
+    color: var(--live);
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--live);
+    box-shadow: 0 0 12px var(--live-glow);
+    text-decoration: none;
+    transition: transform var(--transition-fast);
+}
+.live-pill::before {
+    content: "";
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--live);
+    box-shadow: 0 0 6px var(--live);
+    animation: live-pulse 1.6s ease-in-out infinite;
+}
+.live-pill:hover { transform: scale(1.03); color: var(--live); }
+@keyframes live-pulse {
+    0%, 100% { opacity: 0.6; transform: scale(0.85); }
+    50%      { opacity: 1.0; transform: scale(1.10); }
+}
+
+/* ---- Forms / inputs --------------------------------------------------- */
+
+input, select, textarea {
+    background: var(--bg-elevated);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.7rem;
+    font: inherit;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface);
+}
+
+/* ---- Validation (Blazor's built-in classes) --------------------------- */
+
+.valid.modified:not([type=checkbox]) { outline: 1px solid var(--success); }
+.invalid                              { outline: 1px solid var(--danger); }
+.validation-message                   { color: var(--danger); font-size: 0.85em; }
+
+/* ---- Blazor error boundary ------------------------------------------- */
+
+.blazor-error-boundary {
+    background: var(--danger);
+    color: #fff;
+    padding: 1rem;
+    border-radius: var(--radius-md);
+}
+.blazor-error-boundary::after {
+    content: "Something went wrong in the cave.";
+}
+
+/* ---- Helpers --------------------------------------------------------- */
+
+.muted        { color: var(--text-muted); }
+.faint        { color: var(--text-faint); }
+.stack > * + *{ margin-top: 1rem; }
+.row-flex     { display: flex; gap: 1rem; align-items: center; }
+.spacer       { flex: 1; }
+.wrap         { max-width: 1200px; margin: 0 auto; padding: 0 1.25rem; }
+
+/* Subtle stone-texture vibe via repeating gradient on body */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(ellipse at top, rgba(212, 154, 58, 0.04), transparent 60%),
+        radial-gradient(ellipse at bottom right, rgba(212, 154, 58, 0.03), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+}

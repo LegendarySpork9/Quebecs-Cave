@@ -1,0 +1,187 @@
+@page "/streams"
+@rendermode InteractiveServer
+@using QuebecsCave.Core.Domain
+@using QuebecsCave.Core.Repositories
+@using QuebecsCave.Services.Games
+@using QuebecsCave.Services.Streams
+@using QuebecsCave.Web.Components.Shared
+@inject IStreamService StreamService
+@inject IGameService GameService
+
+<PageTitle>Streams · Quebec's Cave</PageTitle>
+
+<header class="page-head">
+    <h1>Streams</h1>
+    <p class="muted">
+        The complete archive. Filter by game, date, or search for whatever Quebec was up to.
+    </p>
+</header>
+
+<div class="card filter-bar">
+    <div class="filter">
+        <label for="f-game">Game</label>
+        <select id="f-game" @bind="_gameId" @bind:after="OnFilterChanged">
+            <option value="">All games</option>
+            @foreach (var g in _games)
+            {
+                <option value="@g.GameId">@g.Name</option>
+            }
+        </select>
+    </div>
+    <div class="filter">
+        <label for="f-from">From</label>
+        <input id="f-from" type="date" @bind="_from" @bind:after="OnFilterChanged" />
+    </div>
+    <div class="filter">
+        <label for="f-to">To</label>
+        <input id="f-to" type="date" @bind="_to" @bind:after="OnFilterChanged" />
+    </div>
+    <div class="filter grow">
+        <label for="f-q">Search</label>
+        <input id="f-q" type="search" placeholder="Title contains…" @bind="_search" @bind:event="oninput" @bind:after="OnSearchTyped" />
+    </div>
+    <div class="filter-actions">
+        <button class="btn btn-ghost" @onclick="ResetFilters" disabled="@(!HasActiveFilters)">Reset</button>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <p class="muted">Loading…</p>
+}
+else if (_page.Total == 0)
+{
+    <div class="placeholder-msg">
+        <img src="emojis/quebHydrate.png" alt="" width="48" height="48" />
+        <div>
+            <strong>No streams matched.</strong>
+            <p class="muted">
+                @(HasActiveFilters
+                    ? "Try clearing a filter, or hit reset."
+                    : "Nothing's seeded yet — start the dev server with SQL Server reachable.")
+            </p>
+        </div>
+    </div>
+}
+else
+{
+    <p class="muted small results-count">
+        Showing @(_page.Skip + 1)–@Math.Min(_page.Skip + _page.Items.Count, _page.Total)
+        of @_page.Total stream@(_page.Total == 1 ? "" : "s").
+    </p>
+    <div class="card-grid">
+        @foreach (var card in _page.Items)
+        {
+            <StreamCardView Card="card" />
+        }
+    </div>
+
+    @if (_page.Total > _page.Take)
+    {
+        <nav class="pager">
+            <button class="btn btn-ghost" @onclick="PrevPage" disabled="@(_skip == 0)">← Newer</button>
+            <span class="muted small">Page @((_skip / _take) + 1) of @((int)Math.Ceiling(_page.Total / (double)_take))</span>
+            <button class="btn btn-ghost" @onclick="NextPage" disabled="@(_skip + _take >= _page.Total)">Older →</button>
+        </nav>
+    }
+}
+
+@code {
+    private const int _take = 12;
+
+    private IReadOnlyList<Game> _games = Array.Empty<Game>();
+    private StreamPage _page = new(Array.Empty<StreamCard>(), 0, 0, _take);
+    private bool _loading = true;
+
+    private string? _gameId;
+    private DateTime? _from;
+    private DateTime? _to;
+    private string _search = "";
+    private int _skip;
+
+    private CancellationTokenSource? _searchCts;
+
+    private bool HasActiveFilters =>
+        !string.IsNullOrEmpty(_gameId)
+        || _from.HasValue
+        || _to.HasValue
+        || !string.IsNullOrWhiteSpace(_search);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _games = await GameService.ListAsync(CancellationToken.None);
+        }
+        catch
+        {
+            _games = Array.Empty<Game>();
+        }
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            int? gameId = int.TryParse(_gameId, out var gid) ? gid : null;
+            DateTimeOffset? from = _from.HasValue ? new DateTimeOffset(_from.Value, TimeSpan.Zero) : null;
+            DateTimeOffset? to = _to.HasValue ? new DateTimeOffset(_to.Value.AddDays(1), TimeSpan.Zero) : null;
+            var search = string.IsNullOrWhiteSpace(_search) ? null : _search.Trim();
+            var filter = new StreamFilter(gameId, from, to, search, _skip, _take);
+            _page = await StreamService.SearchAsync(filter, CancellationToken.None);
+        }
+        catch
+        {
+            _page = new StreamPage(Array.Empty<StreamCard>(), 0, _skip, _take);
+        }
+        _loading = false;
+    }
+
+    private async Task OnFilterChanged()
+    {
+        _skip = 0;
+        await LoadPageAsync();
+    }
+
+    private async Task OnSearchTyped()
+    {
+        // Debounce: cancel any pending load and start a new one after a beat.
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+        try
+        {
+            await Task.Delay(280, token);
+            _skip = 0;
+            await LoadPageAsync();
+        }
+        catch (TaskCanceledException) { /* superseded by the next keystroke */ }
+    }
+
+    private async Task ResetFilters()
+    {
+        _gameId = null;
+        _from = null;
+        _to = null;
+        _search = "";
+        _skip = 0;
+        await LoadPageAsync();
+    }
+
+    private async Task PrevPage()
+    {
+        if (_skip == 0) return;
+        _skip = Math.Max(0, _skip - _take);
+        await LoadPageAsync();
+    }
+
+    private async Task NextPage()
+    {
+        if (_skip + _take >= _page.Total) return;
+        _skip += _take;
+        await LoadPageAsync();
+    }
+}

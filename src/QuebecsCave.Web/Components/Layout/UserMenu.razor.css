@@ -1,0 +1,71 @@
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    border: 1px solid var(--border);
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border);
+}
+
+.user-avatar-placeholder {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.user-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 18ch;
+}
+
+.user-roles {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+}
+
+.role-chip {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+}
+
+.role-streamer  { background: rgba(232, 200, 150, 0.2); color: var(--highlight); border-color: var(--highlight); }
+.role-moderator { background: rgba(111, 191, 115, 0.18); color: var(--success);   border-color: var(--success); }
+.role-developer { background: rgba(217, 179, 94, 0.18);  color: var(--warn);      border-color: var(--warn); }
+
+.signout { margin: 0; }
+.signout button { font-size: 1rem; }
+
+.dev-login-link { margin-left: 0.25rem; }
